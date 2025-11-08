@@ -33,6 +33,7 @@ from tkinter import (
     Y,
     VERTICAL,
     NW,
+    Radiobutton,
 )
 from PIL import ImageTk, Image, ImageChops
 import csv
@@ -224,7 +225,7 @@ canvas.create_rectangle(
     outline="")
 
 button_image_1 = PhotoImage(
-    file=relative_to_assets("button_1.png"))
+    file=relative_to_assets("button_11.png"))
 button_1 = Button(
     image=button_image_1,
     borderwidth=0,
@@ -402,35 +403,135 @@ def delete_student(index: int) -> None:
 
 
 def open_add_student_window() -> None:
-    # Toplevel form for adding a student
+
+    # --- WINDOW SETUP ---
     win = Toplevel(window)
     win.title("Add Student")
-    win.geometry("360x260")
+    win.geometry("420x290")
+    win.configure(bg="#FFFFFF")
     win.resizable(False, False)
+    try:
+        logo = PhotoImage(file=relative_to_assets("Logo.png"))
+        win.iconphoto(False, logo)
+        win.logo = logo  # keep a reference to prevent garbage collection
+    except Exception as e:
+        print("Logo not loaded:", e)
 
-    Label(win, text="Student ID:").place(x=10, y=10)
-    id_entry = Entry(win)
-    id_entry.place(x=110, y=10, width=220)
+    # --- CANVAS DESIGN ---
+    canvas = Canvas(
+        win,
+        bg="#FFFFFF",
+        height=290,
+        width=420,
+        bd=0,
+        highlightthickness=0,
+        relief="ridge"
+    )
+    canvas.place(x=0, y=0)
 
-    Label(win, text="Name:").place(x=10, y=50)
-    name_entry = Entry(win)
-    name_entry.place(x=110, y=50, width=220)
+    # --- LABELS (drawn text) ---
+    canvas.create_text(
+        20.0, 44.0,
+        anchor="nw",
+        text="Student ID:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
 
-    Label(win, text="Course:").place(x=10, y=90)
-    course_entry = Entry(win)
-    course_entry.place(x=110, y=90, width=220)
+    canvas.create_text(
+        62.0, 92.0,
+        anchor="nw",
+        text="Name:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
 
-    Label(win, text="Location:").place(x=10, y=130)
-    loc_var = StringVar(value="Up")
-    OptionMenu(win, loc_var, "Up", "Down").place(x=110, y=125, width=120)
+    canvas.create_text(
+        50.0, 139.0,
+        anchor="nw",
+        text="Course:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
 
+    canvas.create_text(
+        38.0, 187.0,
+        anchor="nw",
+        text="Location:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
+
+    # --- TEXTBOXES / ENTRY FIELDS ---
+    entry_image_1 = PhotoImage(file=relative_to_assets("entry_1.png"))
+    entry_bg_1 = canvas.create_image(262.38, 52.8, image=entry_image_1)
+    id_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    id_entry.place(x=138, y=38.0, width=250.23, height=30.6)
+
+    entry_image_2 = PhotoImage(file=relative_to_assets("entry_2.png"))
+    entry_bg_2 = canvas.create_image(262.38, 107.37, image=entry_image_2)
+    name_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    name_entry.place(x=138, y=85, width=250.23, height=30.6)
+
+    entry_image_3 = PhotoImage(file=relative_to_assets("entry_3.png"))
+    entry_bg_3 = canvas.create_image(262.38, 149.62, image=entry_image_3)
+    course_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    course_entry.place(x=138, y=135, width=250.23, height=30.6)
+
+    # --- LOCATION RADIO BUTTONS ---
+    loc_var = StringVar(value="UP")
+
+    radio_up = Radiobutton(
+        win,
+        text="UP",
+        variable=loc_var,
+        value="UP",
+        bg="#FFFFFF",
+        font=("Inter", 12)
+    )
+    radio_up.place(x=140, y=185)
+
+    radio_down = Radiobutton(
+        win,
+        text="DOWN",
+        variable=loc_var,
+        value="DOWN",
+        bg="#FFFFFF",
+        font=("Inter", 12)
+    )
+    radio_down.place(x=200, y=185)
+
+    # --- FUNCTIONALITY (SAVE + CANCEL) ---
     def on_save() -> None:
         sid = id_entry.get().strip()
         name = name_entry.get().strip()
         course = course_entry.get().strip()
         location = loc_var.get().strip()
+        
         if not sid:
             messagebox.showwarning("Validation", "Student ID is required.")
+            print(sid, name, course, location)
             return
         # Append and save
         students.append({"student_id": sid, "name": name, "course": course, "location": location})
@@ -441,8 +542,48 @@ def open_add_student_window() -> None:
         except Exception:
             pass
 
-    Button(win, text="Save", command=on_save).place(x=110, y=180, width=80)
-    Button(win, text="Cancel", command=win.destroy).place(x=200, y=180, width=80)
+
+    # --- BUTTONS (DESIGNED IMAGES) ---
+    button_image_1 = PhotoImage(file=relative_to_assets("button_2.png"))
+    button_image_2 = PhotoImage(file=relative_to_assets("button_1.png"))
+
+    # Place buttons directly in window, not over canvas drawings
+    save_button = Button(
+        win,
+        image=button_image_1,
+        borderwidth=0,
+        highlightthickness=0,
+        command=on_save,     # will now trigger properly
+        relief="flat",
+        bg="#FFFFFF",
+        activebackground="#FFFFFF",
+        cursor="hand2"
+    )
+    save_button.place(x=214.28, y=245.99, width=76.19, height=22.00)
+
+    cancel_button = Button(
+        win,
+        image=button_image_2,
+        borderwidth=0,
+        highlightthickness=0,
+        command=win.destroy,
+        relief="flat",
+        bg="#FFFFFF",
+        activebackground="#FFFFFF",
+        cursor="hand2"
+    )
+    cancel_button.place(x=120.0, y=245.99, width=76.19, height=22.00)
+
+    # Keep references so images aren’t garbage collected
+    win.entry_images = [
+        entry_image_1, entry_image_2, entry_image_3,
+        button_image_1, button_image_2
+    ]
+
+    # Raise buttons above canvas (important!)
+    save_button.lift()
+    cancel_button.lift()
+
 
 
 def open_edit_student_window(index: int) -> None:
@@ -452,29 +593,126 @@ def open_edit_student_window(index: int) -> None:
     except Exception:
         return
 
+    # --- WINDOW SETUP ---
     win = Toplevel(window)
     win.title("Edit Student")
-    win.geometry("360x300")
+    win.geometry("420x290")
+    win.configure(bg="#FFFFFF")
     win.resizable(False, False)
+    try:
+        logo = PhotoImage(file=relative_to_assets("Logo.png"))
+        win.iconphoto(False, logo)
+        win.logo = logo  # keep a reference to prevent garbage collection
+    except Exception as e:
+        print("Logo not loaded:", e)
 
-    Label(win, text="Student ID:").place(x=10, y=10)
-    id_entry = Entry(win)
-    id_entry.place(x=110, y=10, width=220)
+    # --- CANVAS DESIGN ---
+    canvas = Canvas(
+        win,
+        bg="#FFFFFF",
+        height=290,
+        width=420,
+        bd=0,
+        highlightthickness=0,
+        relief="ridge"
+    )
+    canvas.place(x=0, y=0)
+
+    # --- LABELS (drawn text) ---
+    canvas.create_text(
+        20.0, 44.0,
+        anchor="nw",
+        text="Student ID:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
+
+    canvas.create_text(
+        62.0, 92.0,
+        anchor="nw",
+        text="Name:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
+
+    canvas.create_text(
+        50.0, 139.0,
+        anchor="nw",
+        text="Course:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
+
+    canvas.create_text(
+        38.0, 187.0,
+        anchor="nw",
+        text="Location:",
+        fill="#000000",
+        font=("Inter", 18 * -1)
+    )
+
+    # --- TEXTBOXES / ENTRY FIELDS ---
+    entry_image_1 = PhotoImage(file=relative_to_assets("entry_1.png"))
+    entry_bg_1 = canvas.create_image(262.38, 52.8, image=entry_image_1)
+    id_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    id_entry.place(x=138, y=38.0, width=250.23, height=30.6)
     id_entry.insert(0, s.get("student_id", ""))
 
-    Label(win, text="Name:").place(x=10, y=50)
-    name_entry = Entry(win)
-    name_entry.place(x=110, y=50, width=220)
+    entry_image_2 = PhotoImage(file=relative_to_assets("entry_2.png"))
+    entry_bg_2 = canvas.create_image(262.38, 107.37, image=entry_image_2)
+    name_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    name_entry.place(x=138, y=85, width=250.23, height=30.6)
     name_entry.insert(0, s.get("name", ""))
 
-    Label(win, text="Course:").place(x=10, y=90)
-    course_entry = Entry(win)
-    course_entry.place(x=110, y=90, width=220)
+    entry_image_3 = PhotoImage(file=relative_to_assets("entry_3.png"))
+    entry_bg_3 = canvas.create_image(262.38, 149.62, image=entry_image_3)
+    course_entry = Entry(
+        win,
+        bd=0,
+        bg="#FFFFFF",
+        fg="#000716",
+        highlightthickness=0,
+        font=("Inter", 12)
+    )
+    course_entry.place(x=138, y=135, width=250.23, height=30.6)
     course_entry.insert(0, s.get("course", ""))
 
-    Label(win, text="Location:").place(x=10, y=130)
-    loc_var = StringVar(value=s.get("location", "Up"))
-    OptionMenu(win, loc_var, "Up", "Down").place(x=110, y=125, width=120)
+    # --- LOCATION RADIO BUTTONS ---
+    loc_var = StringVar(value=s.get("location", "UP"))
+
+    radio_up = Radiobutton(
+        win,
+        text="UP",
+        variable=loc_var,
+        value="UP",
+        bg="#FFFFFF",
+        font=("Inter", 12)
+    )
+    radio_up.place(x=140, y=185)
+
+    radio_down = Radiobutton(
+        win,
+        text="DOWN",
+        variable=loc_var,
+        value="DOWN",
+        bg="#FFFFFF",
+        font=("Inter", 12)
+    )
+    radio_down.place(x=200, y=185)
 
     def on_save() -> None:
         sid = id_entry.get().strip()
@@ -505,9 +743,62 @@ def open_edit_student_window(index: int) -> None:
             except Exception:
                 pass
 
-    Button(win, text="Save", command=on_save).place(x=80, y=220, width=80)
-    Button(win, text="Delete", command=on_delete).place(x=170, y=220, width=80)
-    Button(win, text="Cancel", command=win.destroy).place(x=260, y=220, width=80)
+    # --- BUTTONS ---
+    # Create styled buttons without images first
+    save = PhotoImage(file=relative_to_assets("button_2.png"))
+    cancel = PhotoImage(file=relative_to_assets("button_1.png"))
+    delete = PhotoImage(file=relative_to_assets("button_3.png"))
+    
+    save_button = Button(
+        win,
+        image=save,
+        text="Save",
+        borderwidth=0,
+        highlightthickness=0,
+        command=on_save,
+        relief="flat",
+        bg="#FFFFFF",
+        activebackground="#FFFFFF",
+        cursor="hand2"
+    )
+    save_button.place(x=255, y=245, width=80, height=26)
+
+
+    delete_button = Button(
+        win,
+        image=delete,
+        borderwidth=0,
+        highlightthickness=0,
+        command=on_delete,
+        relief="flat",
+        bg="#FFFFFF",
+        activebackground="#FFFFFF",
+        cursor="hand2"
+    )
+    delete_button.place(x=170, y=245, width=80, height=26)
+
+    cancel_button = Button(
+        win,
+        image=cancel,
+        borderwidth=0,
+        highlightthickness=0,
+        command=win.destroy,
+        relief="flat",
+        bg="#FFFFFF",
+        activebackground="#FFFFFF",
+        cursor="hand2"
+    )
+    cancel_button.place(x=85, y=245, width=80, height=26)
+
+    # Keep entry image references
+    win.entry_images = [
+        entry_image_1, entry_image_2, entry_image_3, save, cancel, delete
+    ]
+
+    # Ensure buttons are visible
+    save_button.lift()
+    delete_button.lift()
+    cancel_button.lift()
 
 
 # Load any existing students and render them
