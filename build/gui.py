@@ -31,9 +31,17 @@ from tkinter import (
 )
 from PIL import ImageTk, Image
 import sqlite3
+import qrcode 
+from io import BytesIO 
 
 OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"C:\Users\Joseph\Documents\Tkinter\Tkinter-Designer\build\build\assets\frame0")
+# Resolve assets directory relative to this file. The generated file previously
+# contained an absolute path from another machine (user "Joseph") which won't
+# exist here. Prefer `build/assets/frame0`, then fall back to the repo-level
+# `assets/frame0` if necessary.
+ASSETS_PATH = OUTPUT_PATH / Path("assets") / Path("frame0")
+if not ASSETS_PATH.exists():
+    ASSETS_PATH = OUTPUT_PATH.parent / Path("assets") / Path("frame0")
 
 
 students = []
@@ -422,25 +430,39 @@ def render_students() -> None:
               bg="#FFFFFF",
               anchor="w").place(x=695, y=y-10, width=100)
 
-        # Create an Edit button for each row (opens edit dialog with delete)
-        if button_image_2:
-            btn = Button(row_frame, 
-                         image=button_image_2, 
-                         borderwidth=0, 
-                         highlightthickness=0, 
-                         command=lambda i=idx: open_edit_student_window(i),  
-                         relief="flat",
-                         bg="#FFFFFF"
-            ) # keep reference on the widget
-            btn.image = button_image_2
-        else:
-            btn = Button(row_frame, text="Edit", command=lambda i=idx: open_edit_student_window(i))
-        # Place button near the ACTION column
+# Create the QR Code button
+        qr_btn = Button(row_frame,
+                        text="QR Code",
+                        font=("Inter", 10),
+                        borderwidth=1,
+                        relief="flat",
+                        bg="#E0E0FF", # A light blue/purple color
+                        activebackground="#CCCCFF",
+                        command=lambda sid=s.get("student_id", ""), name=s.get("name", ""): 
+                                generate_and_display_qr_code(sid, name) 
+        )
         btn_width = 80
         btn_height = 26
-        # Place within the row frame
-        btn.place(x=855, y=btn_height/2, width=btn_width, height=btn_height)
-        action_buttons.append(btn)
+        # Place QR button to the left of the Edit button (e.g., at x=770)
+        qr_btn.place(x=770, y=btn_height/2, width=btn_width, height=btn_height)
+        action_buttons.append(qr_btn) # Keep reference
+
+        # Create an Edit button for each row (opens edit dialog with delete)
+        if button_image_2:
+            edit_btn = Button(row_frame, 
+                             image=button_image_2, 
+                             borderwidth=0, 
+                             highlightthickness=0, 
+                             command=lambda i=idx: open_edit_student_window(i), 
+                             relief="flat",
+                             bg="#FFFFFF"
+            )
+            edit_btn.image = button_image_2
+        else:
+            edit_btn = Button(row_frame, text="Edit", command=lambda i=idx: open_edit_student_window(i))
+        # Place Edit button near the ACTION column (e.g., at x=860)
+        edit_btn.place(x=860, y=btn_height/2, width=btn_width, height=btn_height)
+        action_buttons.append(edit_btn)
 
 
 def delete_student(index: int) -> None:
@@ -781,6 +803,61 @@ def open_edit_student_window(index: int) -> None:
         font=("Inter", 12)
     )
     radio_down.place(x=200, y=185)
+
+def generate_and_display_qr_code(student_id: str, name: str) -> None:
+    """Generates a QR code for student data and displays it in a new window."""
+    
+    # Data to encode in the QR code (ID and Name)
+    qr_data = f"Student ID: {student_id}\nName: {name}"
+    
+    try:
+        # Create QR Code instance
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+
+        # Create PIL image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Open a new Tkinter window to display the QR code
+        qr_window = Toplevel(window)
+        qr_window.title(f"QR Code for {student_id}")
+        
+        # Convert PIL image to a format Tkinter can use (PhotoImage)
+        # Using BytesIO to handle the image in memory
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+        buffer.seek(0)
+        
+        # Create a new PhotoImage from the buffer
+        # This reference MUST be kept to prevent garbage collection!
+        tk_image = PhotoImage(data=buffer.read()) 
+        qr_window.tk_image = tk_image # Keep reference
+        
+        # Display the image on a Label
+        qr_label = Label(qr_window, image=tk_image, bg="#FFFFFF")
+        qr_label.pack(padx=20, pady=20)
+        
+        # Add a label for the text content
+        text_label = Label(qr_window, text=qr_data, font=("Inter", 12), bg="#FFFFFF", justify=LEFT)
+        text_label.pack(padx=20, pady=(0, 10))
+
+        # Size the window to fit the content
+        qr_window.update_idletasks() # Calculate required size
+        width = qr_window.winfo_reqwidth()
+        height = qr_window.winfo_reqheight()
+        qr_window.geometry(f"{width}x{height}")
+        qr_window.resizable(False, False)
+        
+    except Exception as e:
+        messagebox.showerror("QR Code Error", f"Could not generate QR code: {e}")
+
+
 
     def on_save() -> None:
         sid = id_entry.get().strip()
