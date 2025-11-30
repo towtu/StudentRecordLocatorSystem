@@ -2,7 +2,7 @@
 
 **Requested by the University Registrar**
 
-LocatR is a desktop application designed to manage student records, including their ID, name, course, and location. This project was developed in Python using Tkinter for the GUI and SQLite for data storage. The system allows adding, editing, deleting, and searching students efficiently, with a clean and intuitive interface.
+LocatR is a desktop application designed to manage student records, including their ID, name, program, and its location. This project was developed in Python using CustomTkinter for the GUI and SQLite for data storage. The system allows adding, editing, deleting, and searching students efficiently, with a clean and intuitive interface.
 
 ---
 
