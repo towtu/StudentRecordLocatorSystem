@@ -1,15 +1,16 @@
 import customtkinter as ctk
 import sqlite3
-import textwrap 
+import textwrap
 import os
-import ctypes 
+import ctypes
 from tkinter import messagebox
-from PIL import Image, ImageTk 
+from tkinter import filedialog
+from PIL import Image, ImageTk
 import qrcode
 from io import BytesIO
 
 # --- 1. APP CONFIGURATION ---
-ctk.set_appearance_mode("Light") 
+ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
 # --- BRANDING ---
@@ -17,12 +18,14 @@ COLOR_ACCENT = "#1A1851"        # Official Brand Color
 FONT_MAIN = "Inter"             # Official Font
 
 # UI Colors
-COLOR_BG = "#FFFFFF"            
-COLOR_SIDEBAR = "#FFFFFF"       
-COLOR_TEXT_NAV = "#64748B"      
-COLOR_HOVER = "#F1F5F9"         
+COLOR_BG = "#FFFFFF"
+COLOR_SIDEBAR = "#FFFFFF"
+COLOR_TEXT_NAV = "#64748B"
+COLOR_HOVER = "#F1F5F9"
 COLOR_ERROR = "#DC2626"         # Red for errors
 COLOR_LINK = "#3B82F6"          # Blue for clickable links
+COLOR_NEUTRAL = "#6c757d"       # Neutral gray for non-destructive actions
+COLOR_NEUTRAL_HOVER = "#5a6268" # Darker gray for hover state
 
 # --- LOCATION COLORS ---
 COLOR_UP = "#059669"            # Emerald Green
@@ -33,7 +36,7 @@ DB_NAME = "students.db"
 # --- 2. DATA STRUCTURE ---
 UNIVERSITY_STRUCTURE = {
     "College of Information Technology and Computing": {
-        "icon_path": "assets/frame0/icon_citc.png", 
+        "icon_path": "assets/frame0/icon_citc.png",
         "programs": [
             {"name": "Bachelor of Science in Information Technology", "db_filter": "Information Technology"},
             {"name": "Bachelor of Science in Technology Communication Management", "db_filter": "Communication Management"},
@@ -130,8 +133,8 @@ def smart_break_text(text):
     return textwrap.fill(text, width=25)
 
 def format_location_display(loc_code):
-    if loc_code == "UP": return "⬆ Upper Floor"
-    if loc_code == "DOWN": return "⬇ Lower Floor"
+    if loc_code == "UP": return "↑ Upper Floor"
+    if loc_code == "DOWN": return "↓ Lower Floor"
     return loc_code
 
 def get_absolute_path(relative_path):
@@ -154,7 +157,6 @@ def load_icon_ctk(relative_path, size=(24, 24)):
             print(f"Error loading CTk image {final_path}: {e}")
             return None
     else:
-        # print(f"⚠️ Icon missing: {relative_path}")
         return None
 
 # --- 4. DATABASE FUNCTIONS ---
@@ -254,7 +256,7 @@ class LocatRApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         init_db()
-        self.current_view_data = None 
+        self.current_view_data = None
         
         # Load College Icons
         self.loaded_icons = {}
@@ -459,10 +461,10 @@ class LocatRApp(ctk.CTk):
         
         college_of_program = "College of Information Technology and Computing" 
         for col, data in UNIVERSITY_STRUCTURE.items():
-            if program_data in data["programs"]:
+            if any(p == program_data for p in data["programs"]):
                 college_of_program = col
                 break
-
+        
         back_btn = ctk.CTkButton(header, text="← Back", width=80, fg_color="#E2E8F0", text_color="black", hover_color="#CBD5E1", 
                                  font=(FONT_MAIN, 12), command=lambda: self.show_program_grid(college_of_program))
         back_btn.pack(side="left", padx=(0, 15))
@@ -501,11 +503,11 @@ class LocatRApp(ctk.CTk):
         for s in students:
             self.render_student_row(self.content_area, s, show_program=True)
 
-    # --- NEW QR MODAL ---
+    # --- QR MODAL (With Save Button) ---
     def open_qr_modal(self, sid, name):
         toplevel = ctk.CTkToplevel(self)
         toplevel.geometry("350x480")
-        toplevel.title("Student QR Code")
+        toplevel.title(f"QR for {sid}")
         
         if hasattr(self, 'icon_photo'):
              toplevel.after(200, lambda: toplevel.iconphoto(False, self.icon_photo))
@@ -518,15 +520,19 @@ class LocatRApp(ctk.CTk):
         # Generate QR Data
         qr_data = f"Student ID: {sid}\nName: {name}"
         
+        qr_pil_img = None # Variable to hold the PIL image for saving
+        
         try:
             # Create QR
             qr = qrcode.QRCode(version=1, box_size=10, border=2)
             qr.add_data(qr_data)
             qr.make(fit=True)
             
-            # Convert to RGB image for CTk
-            img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
-            qr_ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(220, 220))
+            # Get the PIL image instance
+            qr_pil_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+            
+            # Convert to CTkImage for display
+            qr_ctk_img = ctk.CTkImage(light_image=qr_pil_img, dark_image=qr_pil_img, size=(220, 220))
             
             # Display Image
             ctk.CTkLabel(toplevel, text="", image=qr_ctk_img).pack(pady=10)
@@ -538,8 +544,38 @@ class LocatRApp(ctk.CTk):
 
         except Exception as e:
             ctk.CTkLabel(toplevel, text=f"Error generating QR: {e}", text_color="red").pack()
+            return
 
-        ctk.CTkButton(toplevel, text="Close", fg_color=COLOR_ERROR, command=toplevel.destroy).pack(pady=20)
+        # --- SAVE QR CODE FUNCTIONALITY ---
+        def save_qr_code():
+            if qr_pil_img is None:
+                messagebox.showerror("Error", "QR code image not generated.")
+                return
+
+            # Open save file dialog
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                initialfile=f"QR_{sid}_{name.replace(' ', '_')}.png",
+                filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
+            )
+
+            if file_path:
+                try:
+                    # Save the PIL Image to the selected path
+                    qr_pil_img.save(file_path)
+                    messagebox.showinfo("Success", f"QR Code saved to:\n{file_path}")
+                except Exception as e:
+                    messagebox.showerror("Save Error", f"Failed to save file: {e}")
+
+        # New Save Button
+        # Added width=220 to match the Close button
+        save_btn = ctk.CTkButton(toplevel, text="💾 Save QR Code (PNG)", fg_color=COLOR_UP, hover_color="#047857", width=220, command=save_qr_code)
+        save_btn.pack(pady=(15, 5))
+
+        # Close Button
+        # Changed fg_color to neutral gray and added hover_color
+        # Added width=220 to match the Save button
+        ctk.CTkButton(toplevel, text="Close", fg_color=COLOR_NEUTRAL, hover_color=COLOR_NEUTRAL_HOVER, width=220, command=toplevel.destroy).pack(pady=(5, 20))
 
 
 # --- MODALS ---
@@ -567,7 +603,7 @@ class LocatRApp(ctk.CTk):
         entry_id, err_id = create_entry("Student ID")
         entry_name, err_name = create_entry("Full Name")
 
-        # --- 3. College Dropdown (Unclickable Text + Hand Cursor) ---
+        # --- 3. College Dropdown ---
         ctk.CTkLabel(toplevel, text="College", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(2,0)) 
         college_names = list(UNIVERSITY_STRUCTURE.keys())
         
@@ -581,12 +617,15 @@ class LocatRApp(ctk.CTk):
             dropdown_fg_color="white", 
             dropdown_text_color="black", 
             font=(FONT_MAIN, 12),
-            state="readonly" # Prevents typing
+            state="readonly",
+            # --- HOVER COLORS ---
+            button_color="#CBD5E1",        # Normal Gray
+            button_hover_color="#1A1851"   # Accent Color on Hover
         )
         combo_college.pack(fill="x", padx=40, pady=(2, 0))
         combo_college.set("Select College") 
 
-        # --- 4. Program Dropdown (Unclickable Text + Hand Cursor) ---
+        # --- 4. Program Dropdown ---
         ctk.CTkLabel(toplevel, text="Program", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(5,0)) 
         
         combo_program = ctk.CTkComboBox(
@@ -599,26 +638,28 @@ class LocatRApp(ctk.CTk):
             dropdown_fg_color="white", 
             dropdown_text_color="black", 
             font=(FONT_MAIN, 12),
-            state="readonly" # Prevents typing
+            state="readonly",
+            # --- HOVER COLORS ---
+            button_color="#CBD5E1",        # Normal Gray
+            button_hover_color="#1A1851"   # Accent Color on Hover
         )
         combo_program.pack(fill="x", padx=40, pady=(2, 0))
         combo_program.set("Select College First")
         
-        # --- FORCE CURSOR CHANGE ON HOVER ---
-        # Since state="readonly" doesn't automatically give a hand cursor, we force it.
-        def set_hand_cursor(event):
-            event.widget.configure(cursor="hand2")
-            
-        def set_arrow_cursor(event):
-            event.widget.configure(cursor="")
-
-        # Apply bindings to the internal entry widget of the comboboxes
-        # This makes the whole box trigger the hand cursor
+        # --- CURSOR LOGIC ---
+        # 1. Bind Entry area (Text part)
         combo_college._entry.bind("<Enter>", lambda e: combo_college.configure(cursor="hand2"))
         combo_college._entry.bind("<Leave>", lambda e: combo_college.configure(cursor=""))
         
         combo_program._entry.bind("<Enter>", lambda e: combo_program.configure(cursor="hand2"))
         combo_program._entry.bind("<Leave>", lambda e: combo_program.configure(cursor=""))
+
+        # 2. Bind Canvas area (The Arrow Button part)
+        combo_college._canvas.bind("<Enter>", lambda e: combo_college.configure(cursor="hand2"))
+        combo_college._canvas.bind("<Leave>", lambda e: combo_college.configure(cursor=""))
+        
+        combo_program._canvas.bind("<Enter>", lambda e: combo_program.configure(cursor="hand2"))
+        combo_program._canvas.bind("<Leave>", lambda e: combo_program.configure(cursor=""))
 
         err_prog = ctk.CTkLabel(toplevel, text="", text_color=COLOR_ERROR, font=(FONT_MAIN, 10), anchor="w")
         err_prog.pack(fill="x", padx=40)
@@ -676,7 +717,7 @@ class LocatRApp(ctk.CTk):
                 err_id.configure(text="❌ Cannot Save: Invalid ID")
                 return
             
-            if prog == "Select College First" or prog == "":
+            if prog == "Select College First" or prog == "" or prog == "No Programs Found":
                 err_prog.configure(text="❌ Please select a valid program")
                 return
 
