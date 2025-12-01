@@ -72,7 +72,9 @@ LocatR is a desktop application designed to manage student records, including th
 
 **Joseph T. Pendon Jr.**
 University Student | Software Developer
+
 **Wency G. Casiño**
 University Student | Software Developer
+
 **Kent John J. Chavo**
 University Student | Software Developer
