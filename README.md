@@ -1,4 +1,4 @@
-# LocatR - Student Location Management System
+# LocatR - Student Record Locator System
 
 **Requested by the Office of the University Registrar - USTP CDO**
 
