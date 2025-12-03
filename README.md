@@ -1,21 +1,23 @@
-# LocatR - Student Location Management System
+# LocatR - Student Record Locator System
 
-**Requested by the University Registrar**
+**Requested by the Office of the University Registrar - USTP CDO**
 
-LocatR is a desktop application designed to manage student records, including their ID, name, program, and its location. This project was developed in Python using CustomTkinter for the GUI and SQLite for data storage. The system allows adding, editing, deleting, and searching students efficiently, with a clean and intuitive interface.
+LocatR is a desktop application designed to manage student records, including their ID, name, program, and its location. This project was developed in Python using CustomTkinter for the GUI, SQLite for data storage, and QRCode for record sharing. The system allows adding, editing, deleting, and searching students efficiently, with a clean and intuitive interface.
 
 ---
 
 ## Features
 
+
+- **Academic Dashboard:** A visual homepage displaying all Academic Units for quick navigation.
 - **Add Students:** Input student ID, name, course, and location. The location can be set to `UP` or `DOWN` using radio buttons.
 - **Edit Students:** Modify existing student details. Ensures unique student IDs.
 - **Delete Students:** Remove student records with confirmation prompt.
+- **Generate QR Codes:** Automatically generate a QR code for any student record and save it as a PNG file.
 - **Search Students:** Search by Student ID or Name dynamically.
 - **Scrollable List:** View all students in a scrollable, organized table.
 - **Input Validation:**
   - Student ID must be exactly 10 digits and unique.
-  - Name and course cannot contain numbers.
 - **SQLite Database:** Stores student information persistently.
 - **Custom UI Design:** Uses Tkinter Designer-generated layout and custom images for buttons and entries.
 - **DPI Awareness:** Automatically adjusts for high-DPI screens on Windows.
@@ -35,8 +37,8 @@ LocatR is a desktop application designed to manage student records, including th
 1. **Clone the repository:**
 
    ```bash
-   git clone https://github.com/yourusername/LocatR.git
-   cd LocatR
+   git clone https://github.com/yourusername/StudentRecordLocatorSystem.git
+   cd StudentRecordLocatorSystem
 
    ```
 
@@ -55,17 +57,24 @@ LocatR is a desktop application designed to manage student records, including th
 ## Dependencies
 
 - **Python 3.9+**
-- **Tkinter** (comes with Python standard library)
+- **CustomTkinter** (Modern UI framework)
 - **Pillow** (for image handling)
+- **QRCode** (for generating student codes)
 - **SQLite3** (comes with Python standard library)
 
 ## Notes
 
-- This project was specifically requested by the University Registrar to manage student location data efficiently.
+- This project was specifically requested by the Office of the University Registrar - USTP CDO to manage student record location data efficiently.
 - All UI elements are dynamically rendered and support high-DPI displays on Windows.
 - Ensure the assets/ folder remains in the same path relative to main.py to avoid missing images.
 
 ## Author
 
 **Joseph T. Pendon Jr.**
+University Student | Software Developer
+
+**Wency G. Casiño**
+University Student | Software Developer
+
+**Kent John J. Chavo**
 University Student | Software Developer
