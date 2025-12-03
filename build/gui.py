@@ -37,7 +37,7 @@ DB_NAME = "students.db"
 # --- 2. DATA STRUCTURE ---
 UNIVERSITY_STRUCTURE = {
     "College of Information Technology and Computing": {
-        "icon_path": "assets/frame0/icon_citc.png",
+        "icon_path": "assets/frame0/citc_logo.png", 
         "programs": [
             {"name": "Bachelor of Science in Information Technology", "db_filter": "Information Technology"},
             {"name": "Bachelor of Science in Technology Communication Management", "db_filter": "Communication Management"},
@@ -47,7 +47,7 @@ UNIVERSITY_STRUCTURE = {
         ]
     },
     "College of Engineering and Architecture": {
-        "icon_path": "assets/frame0/icon_cea.png",
+        "icon_path": "assets/frame0/cea_logo.png", 
         "programs": [
             {"name": "Bachelor of Science in Architecture", "db_filter": "Architecture"},
             {"name": "Bachelor of Science in Civil Engineering", "db_filter": "Civil Engineering"},
@@ -64,7 +64,7 @@ UNIVERSITY_STRUCTURE = {
         ]
     },
     "College of Science and Mathematics": {
-        "icon_path": "assets/frame0/icon_csm.png",
+        "icon_path": "assets/frame0/csm_logo.png", 
         "programs": [
             {"name": "Bachelor of Science in Applied Mathematics", "db_filter": "Applied Mathematics"},
             {"name": "Bachelor of Science in Applied Physics", "db_filter": "Applied Physics"},
@@ -72,11 +72,11 @@ UNIVERSITY_STRUCTURE = {
             {"name": "Bachelor of Science in Environmental Science", "db_filter": "Environmental Science"},
             {"name": "Bachelor of Science in Food Technology", "db_filter": "Food Technology"},
             {"name": "Master of Science in Applied Mathematics", "db_filter": "MS Applied Mathematics"},
-            {"name": "Master of Science in Environmental Science & Technology", "db_filter": "MS Environmental"}
+            {"name": "Master of Science in Env Science & Tech", "db_filter": "MS Environmental"}
         ]
     },
     "College of Science and Technology Education": {
-        "icon_path": "assets/frame0/icon_cste.png",
+        "icon_path": "assets/frame0/cste_logo.png",
         "programs": [
             {"name": "Bachelor in Secondary Education Major in Science", "db_filter": "BSED Science"},
             {"name": "Bachelor of Secondary Education Major in Mathematics", "db_filter": "BSED Mathematics"},
@@ -89,7 +89,7 @@ UNIVERSITY_STRUCTURE = {
         ]
     },
     "College of Technology": {
-        "icon_path": "assets/frame0/icon_cot.png",
+        "icon_path": "assets/frame0/cot_logo.png",
         "programs": [
             {"name": "Bachelor of Science in Electronics Technology", "db_filter": "Electronics Technology"},
             {"name": "Bachelor of Science in Autotronics", "db_filter": "Autotronics"},
@@ -99,25 +99,32 @@ UNIVERSITY_STRUCTURE = {
         ]
     },
     "College of Medicine": {
-        "icon_path": "assets/frame0/icon_med.png",
+        "icon_path": "assets/frame0/com_logo.png",
         "programs": [{"name": "Doctor of Medicine", "db_filter": "Medicine"}]
     },
     "College of Nursing": {
-        "icon_path": "assets/frame0/icon_nursing.png",
+        "icon_path": "assets/frame0/con_logo.png",
         "programs": [{"name": "Bachelor of Science in Nursing", "db_filter": "Nursing"}]
     },
     "Senior High School": {
-        "icon_path": "assets/frame0/icon_shs.png",
+        "icon_path": "assets/frame0/shs_logo.png",
         "programs": [{"name": "STEM Strand", "db_filter": "STEM"}]
     },
     "Institute of Governance, Innovations & Sustainability": {
-        "icon_path": "assets/frame0/icon_igis.png",
-        "programs": [{"name": "Public Administration / Governance", "db_filter": "Governance"}]
+        "icon_path": "assets/frame0/igis_logo.png",
+        "programs": [{"name": "Master in Public Sector Innovations", "db_filter": "Public Sector Innovations"}]
     }
 }
 
 # --- 3. HELPER FUNCTIONS ---
 def smart_break_text(text):
+    # Manual overrides for specific college names line breaks
+    if "College of Science and Mathematics" in text:
+        return "College of Science\nand Mathematics"
+    
+    if "Institute of Governance, Innovations & Sustainability" in text:
+        return "Institute of Governance,\nInnovations & Sustainability"
+
     replacements = {
         "Bachelor of Science in": "BS",
         "Bachelor in Secondary Education": "BSED",
@@ -126,11 +133,12 @@ def smart_break_text(text):
         "Master of Science in": "MS",
         "Master of Arts in": "MA",
         "Doctor of Philosophy in": "PhD",
-        "Doctor of": "Doctor of",
+        "Doctor of": "Doctor",
         "Professional Science Masters": "PSM"
     }
     for old, new in replacements.items():
         text = text.replace(old, new)
+        
     return textwrap.fill(text, width=25)
 
 def format_location_display(loc_code):
@@ -150,9 +158,10 @@ def load_icon_ctk(relative_path, size=(24, 24)):
     final_path = get_absolute_path(relative_path)
     if final_path:
         try:
-            return ctk.CTkImage(light_image=Image.open(final_path), dark_image=Image.open(final_path), size=size)
+            pil_img = Image.open(final_path).resize(size)
+            return ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=size)
         except Exception as e:
-            print(f"Error loading CTk image {final_path}: {e}")
+            print(f"Error loading CTk image {final_path} with size {size}: {e}")
             return None
     else:
         return None
@@ -241,7 +250,7 @@ class LocatRApp(ctk.CTk):
             try:
                 pil_img = Image.open(icon_abs_path)
                 self.icon_photo = ImageTk.PhotoImage(pil_img)
-                self.tk.call('wm', 'iconphoto', self._w, self.icon_photo)
+                self.wm_iconphoto(True, self.icon_photo)
             except Exception as e:
                 print(f"Could not set window icon: {e}")
 
@@ -255,24 +264,24 @@ class LocatRApp(ctk.CTk):
         self.current_view_data = None
         
         # Load Resources
-        self.loaded_icons = {}
+        self.loaded_icons = {} 
+        self.homepage_icons = {} 
+        
         for college, data in UNIVERSITY_STRUCTURE.items():
-             self.loaded_icons[college] = load_icon_ctk(data["icon_path"])
+            # SIDEBAR: Smaller icons (18x18) for compact list
+            self.loaded_icons[college] = load_icon_ctk(data["icon_path"], size=(18, 18))
+            # HOMEPAGE: Large icons (80x80)
+            self.homepage_icons[college] = load_icon_ctk(data["icon_path"], size=(80, 80))
         
         self.full_branding_img = load_icon_ctk("assets/frame0/full_branding.png", size=(250, 60))
         
         self.setup_sidebar()
         self.setup_main_area()
         
-        # --- FIX: FORCE FOCUS STEALING ---
-        # This binds a click event to the main window. If you click anywhere
-        # that ISN'T the search entry, it focusses the window, causing the 
-        # search entry to lose focus and trigger the cleanup.
         def global_focus_handler(event):
             try:
-                # Check if the clicked widget is the search entry's internal entry widget
                 if event.widget != self.search_entry._entry:
-                    self.focus() # Force focus to main window
+                    self.focus()
             except:
                 pass
         
@@ -280,15 +289,15 @@ class LocatRApp(ctk.CTk):
 
         self.show_homepage()
 
+    # --- SETUP_SIDEBAR ---
     def setup_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=360, corner_radius=0, fg_color=COLOR_SIDEBAR)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         
-        # --- SEPARATOR LINE (VERTICAL) ---
         self.separator = ctk.CTkFrame(self, width=2, fg_color=COLOR_SEPARATOR)
         self.separator.grid(row=0, column=1, sticky="ns", padx=(0,0))
 
-        # --- 1. CLICKABLE LOGO ---
+        # --- 1. SPACIOUS LOGO AREA ---
         logo_btn = ctk.CTkButton(
             self.sidebar, 
             fg_color="transparent", 
@@ -302,7 +311,7 @@ class LocatRApp(ctk.CTk):
         else:
             logo_btn.configure(text="LocatR System", font=(FONT_MAIN, 24, "bold"), text_color=COLOR_ACCENT, anchor="w")
 
-        # --- 2. USER INFO ---
+        # --- 2. SPACIOUS USER INFO ---
         profile_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         profile_frame.pack(fill="x", padx=30, pady=(0, 20))
         
@@ -311,20 +320,20 @@ class LocatRApp(ctk.CTk):
         ctk.CTkLabel(info_frame, text="Office of the University Registrar", font=(FONT_MAIN, 14, "bold"), text_color="black").pack(anchor="w")
         ctk.CTkLabel(info_frame, text="USTP CDO", font=(FONT_MAIN, 12), text_color="gray").pack(anchor="w")
 
-        # --- 3. ADD BUTTON ---
+        # --- 3. SPACIOUS ADD BUTTON ---
         self.add_btn = ctk.CTkButton(
             self.sidebar, 
             text="+ Add Student",
             font=(FONT_MAIN, 14, "bold"),
             fg_color=COLOR_ACCENT,
             text_color="white",
-            height=50,
+            height=50, 
             corner_radius=8,
             command=self.open_add_modal
         )
         self.add_btn.pack(fill="x", padx=30, pady=(10, 10))
 
-        # --- 4. HOME BUTTON ---
+        # --- 4. SPACIOUS HOME BUTTON ---
         self.home_btn = ctk.CTkButton(
             self.sidebar,
             text="Home",
@@ -339,24 +348,24 @@ class LocatRApp(ctk.CTk):
         )
         self.home_btn.pack(fill="x", padx=30, pady=(5, 5))
 
-        # --- 5. HORIZONTAL SEPARATOR LINE ---
+        # --- 5. SPACIOUS SEPARATOR ---
         self.sidebar_line = ctk.CTkFrame(self.sidebar, height=2, fg_color=COLOR_SEPARATOR)
         self.sidebar_line.pack(fill="x", padx=30, pady=(10, 15))
 
         # --- 6. CATEGORY LABEL ---
         ctk.CTkLabel(self.sidebar, text="ACADEMIC UNITS", text_color="gray", font=(FONT_MAIN, 11, "bold")).pack(anchor="w", padx=30, pady=(0,5))
         
-        # --- 7. SCROLLABLE LIST ---
+        # --- 7. COMPACT LIST ---
         self.nav_frame = ctk.CTkScrollableFrame(self.sidebar, width=340, fg_color="transparent", 
                                                 scrollbar_button_color="white", scrollbar_button_hover_color="white")
-        self.nav_frame.pack(fill="both", expand=True, pady=5)
+        self.nav_frame.pack(fill="both", expand=True, pady=2)
 
         for college, data in UNIVERSITY_STRUCTURE.items():
             display_name = college
             if len(display_name) > 38:
                 display_name = display_name[:36] + "..."
             
-            icon_img = self.loaded_icons.get(college)
+            icon_img = self.loaded_icons.get(college) 
             
             sidebar_btn = ctk.CTkButton(
                 self.nav_frame,
@@ -367,11 +376,11 @@ class LocatRApp(ctk.CTk):
                 fg_color="transparent",
                 text_color=COLOR_TEXT_NAV,
                 hover_color=COLOR_HOVER,
-                font=(FONT_MAIN, 12),
-                height=45,
+                font=(FONT_MAIN, 11), # Smaller font
+                height=32,            # Compact height
                 command=lambda c=college: self.show_program_grid(c)
             )
-            sidebar_btn.pack(fill="x", pady=2, padx=15)
+            sidebar_btn.pack(fill="x", pady=1, padx=15)
 
     def setup_main_area(self):
         self.main_frame = ctk.CTkFrame(self, fg_color=COLOR_BG)
@@ -395,9 +404,7 @@ class LocatRApp(ctk.CTk):
         self.search_entry.pack(side="right")
         self.search_entry.bind("<Return>", self.perform_search)
         
-        # --- FIX: CLEAR SEARCH BAR ON FOCUS OUT ---
         def on_search_focus_out(event):
-            # This deletes the text, which forces CustomTkinter to show the placeholder again
             self.search_entry.delete(0, "end")
             
         self.search_entry.bind("<FocusOut>", on_search_focus_out)
@@ -481,8 +488,8 @@ class LocatRApp(ctk.CTk):
 
         colleges = list(UNIVERSITY_STRUCTURE.keys())
         for i, col_name in enumerate(colleges):
-            display_text = smart_break_text(col_name)
-            icon = self.loaded_icons.get(col_name)
+            display_text = smart_break_text(col_name) 
+            icon = self.homepage_icons.get(col_name) 
 
             card = ctk.CTkButton(
                 grid_frame,
@@ -636,7 +643,7 @@ class LocatRApp(ctk.CTk):
         save_btn.pack(pady=(15, 5))
         ctk.CTkButton(toplevel, text="Close", fg_color=COLOR_NEUTRAL, hover_color=COLOR_NEUTRAL_HOVER, width=220, command=toplevel.destroy).pack(pady=(5, 20))
 
-    # --- MODALS ---
+    # --- MODALS (UPDATED WITH VALIDATION & PLACEHOLDERS) ---
     def open_add_modal(self):
         toplevel = ctk.CTkToplevel(self)
         toplevel.geometry("450x650") 
@@ -649,21 +656,30 @@ class LocatRApp(ctk.CTk):
 
         ctk.CTkLabel(toplevel, text="Add New Student", font=(FONT_MAIN, 22, "bold"), text_color=COLOR_ACCENT).pack(pady=(20, 5))
 
-        def create_entry(label_text):
+        def create_entry(label_text, placeholder=""):
             ctk.CTkLabel(toplevel, text=label_text, text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(2,0)) 
-            entry = ctk.CTkEntry(toplevel, fg_color="#F8FAFC", border_width=1, border_color="#E2E8F0", text_color="black", height=35, font=(FONT_MAIN, 12))
+            entry = ctk.CTkEntry(
+                toplevel, 
+                placeholder_text=placeholder,
+                fg_color="#F8FAFC", 
+                border_width=1, 
+                border_color="#E2E8F0", 
+                text_color="black", 
+                height=35, 
+                font=(FONT_MAIN, 12)
+            )
             entry.pack(fill="x", padx=40, pady=(2, 0)) 
             err = ctk.CTkLabel(toplevel, text="", text_color=COLOR_ERROR, font=(FONT_MAIN, 10), anchor="w")
             err.pack(fill="x", padx=40, pady=(0, 0))
             return entry, err
 
-        entry_id, err_id = create_entry("Student ID")
-        entry_name, err_name = create_entry("Full Name")
+        entry_id, err_id = create_entry("Student ID", placeholder="e.g. 2018100123")
+        entry_name, err_name = create_entry("Full Name", placeholder="e.g. Juan dela C. Cruz")
 
         ctk.CTkLabel(toplevel, text="College", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(2,0)) 
         college_names = list(UNIVERSITY_STRUCTURE.keys())
         
-        # --- FIX: ROBUST HOVER LOGIC FOR COMBOBOX ---
+        # --- FIXED HOVER LOGIC START (CURSOR FORCE) ---
         combo_college = ctk.CTkComboBox(
             toplevel, 
             values=college_names, 
@@ -676,27 +692,28 @@ class LocatRApp(ctk.CTk):
             font=(FONT_MAIN, 12),
             state="readonly",
             button_color="#CBD5E1",
-            button_hover_color="#1A1851"
+            button_hover_color="#1A1851",
+            cursor="hand2"  # <-- Critical addition for cursor
         )
         combo_college.pack(fill="x", padx=40, pady=(2, 0))
         combo_college.set("Select College") 
+        
+        # --- HELPER: FORCE CURSOR ON INTERNAL COMPONENTS ---
+        def force_hand_cursor(widget):
+            try:
+                # Force cursor on the main widget
+                widget.configure(cursor="hand2")
+                # Force cursor on internal entry (text area)
+                if hasattr(widget, '_entry'):
+                    widget._entry.configure(cursor="hand2")
+                # Force cursor on internal canvas (dropdown arrow area)
+                if hasattr(widget, '_canvas'):
+                    widget._canvas.configure(cursor="hand2")
+            except Exception as e:
+                print(f"Cursor error: {e}")
 
-        # Bind Hand Cursor to EVERY part of the combobox (Frame, Entry, Canvas)
-        def set_hand(e):
-            combo_college.configure(cursor="hand2")
-            combo_college._entry.configure(cursor="hand2")
-            combo_college._canvas.configure(cursor="hand2")
-        def set_arrow(e):
-            combo_college.configure(cursor="")
-            combo_college._entry.configure(cursor="")
-            combo_college._canvas.configure(cursor="")
-            
-        combo_college.bind("<Enter>", set_hand)
-        combo_college.bind("<Leave>", set_arrow)
-        combo_college._entry.bind("<Enter>", set_hand)
-        combo_college._entry.bind("<Leave>", set_arrow)
-        combo_college._canvas.bind("<Enter>", set_hand)
-        combo_college._canvas.bind("<Leave>", set_arrow)
+        # Apply the fix immediately
+        force_hand_cursor(combo_college)
 
         ctk.CTkLabel(toplevel, text="Program", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(5,0)) 
         
@@ -712,27 +729,14 @@ class LocatRApp(ctk.CTk):
             font=(FONT_MAIN, 12),
             state="readonly",
             button_color="#CBD5E1",
-            button_hover_color="#1A1851"
+            button_hover_color="#1A1851",
+            cursor="hand2" # <-- Critical addition for cursor
         )
         combo_program.pack(fill="x", padx=40, pady=(2, 0))
         combo_program.set("Select College First")
         
-        # Bind Hand Cursor to Program Dropdown too
-        def set_hand_prog(e):
-            combo_program.configure(cursor="hand2")
-            combo_program._entry.configure(cursor="hand2")
-            combo_program._canvas.configure(cursor="hand2")
-        def set_arrow_prog(e):
-            combo_program.configure(cursor="")
-            combo_program._entry.configure(cursor="")
-            combo_program._canvas.configure(cursor="")
-
-        combo_program.bind("<Enter>", set_hand_prog)
-        combo_program.bind("<Leave>", set_arrow_prog)
-        combo_program._entry.bind("<Enter>", set_hand_prog)
-        combo_program._entry.bind("<Leave>", set_arrow_prog)
-        combo_program._canvas.bind("<Enter>", set_hand_prog)
-        combo_program._canvas.bind("<Leave>", set_arrow_prog)
+        # Apply the fix immediately
+        force_hand_cursor(combo_program)
 
         err_prog = ctk.CTkLabel(toplevel, text="", text_color=COLOR_ERROR, font=(FONT_MAIN, 10), anchor="w")
         err_prog.pack(fill="x", padx=40)
@@ -759,10 +763,27 @@ class LocatRApp(ctk.CTk):
                 err_id.configure(text="")
 
             name = entry_name.get()
-            if len(name) > 0 and not name[0].isupper():
-                 err_name.configure(text="⚠️ Capitalize first letter")
-            else:
-                 err_name.configure(text="")
+            words = name.split()
+            err_msg = ""
+            if len(name) > 0:
+                # Check 1: Start with Capital
+                if not name[0].isupper():
+                    err_msg = "⚠️ Start Name with a Capital letter."
+                
+                # Check 2: Minimum length (First + Last name assumption)
+                # NOTE: Allows 2 words (e.g. "Juan Cruz" for no middle name)
+                elif len(words) < 2:
+                    err_msg = "⚠️ Please enter full name (First & Last)."
+                
+                # Check 3: Middle Initial Dot Logic
+                else:
+                    for word in words:
+                        # If a word is 1 letter and it's a letter (not a symbol), it's likely an initial missing a dot
+                        if len(word) == 1 and word.isalpha():
+                            err_msg = f"⚠️ Add a dot for initial '{word}' (e.g. {word}.)"
+                            break
+            
+            err_name.configure(text=err_msg)
 
         entry_id.bind("<KeyRelease>", validate_inputs)
         entry_name.bind("<KeyRelease>", validate_inputs)
@@ -774,13 +795,38 @@ class LocatRApp(ctk.CTk):
         ctk.CTkRadioButton(radio_frame, text="Upper Floor", variable=loc_var, value="UP", text_color="black", font=(FONT_MAIN, 12)).pack(side="left", padx=10)
         ctk.CTkRadioButton(radio_frame, text="Lower Floor", variable=loc_var, value="DOWN", text_color="black", font=(FONT_MAIN, 12)).pack(side="left", padx=10)
 
+        # --- SMART CAPITALIZATION HELPER ---
+        def smart_format_name(text):
+            # Particles that should remain lowercase if they appear in the middle
+            lowercase_particles = ["de", "dela", "del", "da", "di", "van", "von", "la", "le"]
+            
+            words = text.split()
+            formatted_words = []
+            
+            for i, word in enumerate(words):
+                # Always capitalize the very first word
+                if i == 0:
+                    formatted_words.append(word.capitalize())
+                # If it's a known particle, keep it lowercase
+                elif word.lower() in lowercase_particles:
+                    formatted_words.append(word.lower())
+                # If it ends with a dot (like "C."), ensure it's uppercase "C."
+                elif word.endswith(".") and len(word) == 2:
+                    formatted_words.append(word.upper())
+                # Otherwise, standard capitalize
+                else:
+                    formatted_words.append(word.capitalize())
+            
+            return " ".join(formatted_words)
+
         def save_action():
             sid = entry_id.get().strip()
-            name = entry_name.get().strip()
+            raw_name = entry_name.get().strip()
             prog = combo_program.get()
             loc = loc_var.get()
             
-            name = name.title()
+            # Use smart formatting instead of simple .title()
+            name = smart_format_name(raw_name)
 
             if len(sid) != 10 or not sid.isdigit():
                 err_id.configure(text="❌ Cannot Save: Invalid ID")
@@ -789,9 +835,14 @@ class LocatRApp(ctk.CTk):
             if prog == "Select College First" or prog == "" or prog == "No Programs Found":
                 err_prog.configure(text="❌ Please select a valid program")
                 return
+            
+            # Final Check on Name before saving
+            if len(raw_name) == 0 or len(raw_name.split()) < 2:
+                err_name.configure(text="❌ Invalid Name format")
+                return
 
             if save_student_to_db(sid, name, prog, loc):
-                messagebox.showinfo("Success", "Student Added")
+                messagebox.showinfo("Success", f"Student Added:\n{name}")
                 toplevel.destroy()
                 if self.current_view_data: self.show_student_list(self.current_view_data)
             else:
