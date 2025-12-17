@@ -1,98 +1,174 @@
-
-
-from pathlib import Path
-import sys
-import platform
-try:
-    import ctypes
-except Exception:
-    ctypes = None
-from tkinter import (
-    Tk,
-    Canvas,
-    Entry,
-    Text,
-    Button,
-    PhotoImage,
-    Toplevel,
-    StringVar,
-    OptionMenu,
-    Label,
-    messagebox,
-    Frame,
-    Scrollbar,
-    LEFT,
-    RIGHT,
-    BOTH,
-    Y,
-    VERTICAL,
-    NW,
-    Radiobutton,
-)
-from PIL import ImageTk, Image
+import customtkinter as ctk
 import sqlite3
+import textwrap
+import os
+import ctypes
+from tkinter import messagebox
+from tkinter import filedialog
+from PIL import Image, ImageTk
+import qrcode
+from io import BytesIO
 
-OUTPUT_PATH = Path(__file__).parent
-ASSETS_PATH = OUTPUT_PATH / Path(r"C:\Users\Joseph\Documents\Tkinter\Tkinter-Designer\build\build\assets\frame0")
+# --- 1. APP CONFIGURATION ---
+ctk.set_appearance_mode("Light")
+ctk.set_default_color_theme("blue")
 
+# --- BRANDING ---
+COLOR_ACCENT = "#1A1851"        # Official Brand Color
+FONT_MAIN = "Inter"             # Official Font
 
-students = []
-action_buttons = []
-DB_PATH = OUTPUT_PATH / "students.db"  
+# UI Colors
+COLOR_BG = "#FFFFFF"
+COLOR_SIDEBAR = "#FFFFFF"
+COLOR_TEXT_NAV = "#64748B"
+COLOR_HOVER = "#F1F5F9"
+COLOR_ERROR = "#DC2626"
+COLOR_LINK = "#3B82F6"
+COLOR_NEUTRAL = "#6c757d"
+COLOR_NEUTRAL_HOVER = "#5a6268"
+COLOR_SEPARATOR = "#E2E8F0"     # Light Gray for Lines
 
-def relative_to_assets(path: str) -> Path:
-    return ASSETS_PATH / Path(path)
+# --- LOCATION COLORS ---
+COLOR_UP = "#059669"            # Emerald Green
+COLOR_DOWN = "#D97706"          # Amber / Dark Yellow
 
+DB_NAME = "students.db"
 
-def make_dpi_aware() -> None:
-    """Make the process DPI aware on Windows to avoid blurry Tk windows.
+# --- 2. DATA STRUCTURE ---
+UNIVERSITY_STRUCTURE = {
+    "College of Information Technology and Computing": {
+        "icon_path": "assets/frame0/citc_logo.png", 
+        "programs": [
+            {"name": "Bachelor of Science in Information Technology", "db_filter": "Information Technology"},
+            {"name": "Bachelor of Science in Technology Communication Management", "db_filter": "Communication Management"},
+            {"name": "Bachelor of Science in Data Science", "db_filter": "Data Science"},
+            {"name": "Bachelor of Science in Computer Science", "db_filter": "Computer Science"},
+            {"name": "Entrepreneurial Service Unit", "db_filter": "Entrepreneurial"}
+        ]
+    },
+    "College of Engineering and Architecture": {
+        "icon_path": "assets/frame0/cea_logo.png", 
+        "programs": [
+            {"name": "Bachelor of Science in Architecture", "db_filter": "Architecture"},
+            {"name": "Bachelor of Science in Civil Engineering", "db_filter": "Civil Engineering"},
+            {"name": "Bachelor of Science in Mechanical Engineering", "db_filter": "Mechanical Engineering"},
+            {"name": "Bachelor of Science in Computer Engineering", "db_filter": "Computer Engineering"},
+            {"name": "Bachelor of Science in Geodetic Engineering", "db_filter": "Geodetic"},
+            {"name": "Bachelor of Science in Electrical Engineering", "db_filter": "Electrical Engineering"},
+            {"name": "Bachelor of Science in Electronics Engineering", "db_filter": "Electronics Engineering"},
+            {"name": "Masters of Engineering Program", "db_filter": "Masters of Engineering"},
+            {"name": "Master of Science in Electrical Engineering", "db_filter": "MS Electrical"},
+            {"name": "Master of Science in Sustainable Development", "db_filter": "Sustainable Development"},
+            {"name": "Professional Science Masters in Power Systems", "db_filter": "Power Systems"},
+            {"name": "Doctor of Philosophy in Energy Engineering", "db_filter": "Energy Engineering"}
+        ]
+    },
+    "College of Science and Mathematics": {
+        "icon_path": "assets/frame0/csm_logo.png", 
+        "programs": [
+            {"name": "Bachelor of Science in Applied Mathematics", "db_filter": "Applied Mathematics"},
+            {"name": "Bachelor of Science in Applied Physics", "db_filter": "Applied Physics"},
+            {"name": "Bachelor of Science in Chemistry", "db_filter": "Chemistry"},
+            {"name": "Bachelor of Science in Environmental Science", "db_filter": "Environmental Science"},
+            {"name": "Bachelor of Science in Food Technology", "db_filter": "Food Technology"},
+            {"name": "Master of Science in Applied Mathematics", "db_filter": "MS Applied Mathematics"},
+            {"name": "Master of Science in Env Science & Tech", "db_filter": "MS Environmental"}
+        ]
+    },
+    "College of Science and Technology Education": {
+        "icon_path": "assets/frame0/cste_logo.png",
+        "programs": [
+            {"name": "Bachelor in Secondary Education Major in Science", "db_filter": "BSED Science"},
+            {"name": "Bachelor of Secondary Education Major in Mathematics", "db_filter": "BSED Mathematics"},
+            {"name": "Bachelor in Technology and Livelihood Education", "db_filter": "Livelihood Education"},
+            {"name": "Bachelor in Technical-Vocational Teacher Education", "db_filter": "Vocational Teacher"},
+            {"name": "Certificate of Teaching", "db_filter": "Certificate of Teaching"},
+            {"name": "Master of Science in Mathematics Education", "db_filter": "MS Mathematics Education"},
+            {"name": "Master of Science in Science Education", "db_filter": "Science Education"},
+            {"name": "Doctor of Technology Education", "db_filter": "Doctor of Technology"}
+        ]
+    },
+    "College of Technology": {
+        "icon_path": "assets/frame0/cot_logo.png",
+        "programs": [
+            {"name": "Bachelor of Science in Electronics Technology", "db_filter": "Electronics Technology"},
+            {"name": "Bachelor of Science in Autotronics", "db_filter": "Autotronics"},
+            {"name": "Bachelor of Science in Energy Systems and Management", "db_filter": "Energy Systems"},
+            {"name": "Bachelor of Science in Electro-Mechanical Technology", "db_filter": "Electro-Mechanical"},
+            {"name": "Bachelor of Science in Manufacturing Engineering Tech", "db_filter": "Manufacturing Engineering"}
+        ]
+    },
+    "College of Medicine": {
+        "icon_path": "assets/frame0/com_logo.png",
+        "programs": [{"name": "Doctor of Medicine", "db_filter": "Medicine"}]
+    },
+    "College of Nursing": {
+        "icon_path": "assets/frame0/con_logo.png",
+        "programs": [{"name": "Bachelor of Science in Nursing", "db_filter": "Nursing"}]
+    },
+    "Senior High School": {
+        "icon_path": "assets/frame0/shs_logo.png",
+        "programs": [{"name": "STEM Strand", "db_filter": "STEM"}]
+    },
+    "Institute of Governance, Innovations & Sustainability": {
+        "icon_path": "assets/frame0/igis_logo.png",
+        "programs": [{"name": "Master in Public Sector Innovations", "db_filter": "Public Sector Innovations"}]
+    }
+}
 
-    This tries several Windows APIs in preference order:
-    1. SetProcessDpiAwarenessContext (per-monitor v2) if available
-    2. shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
-    3. user32.SetProcessDPIAware (fallback)
+# --- 3. HELPER FUNCTIONS ---
+def smart_break_text(text):
+    # Manual overrides for specific college names line breaks
+    if "College of Science and Mathematics" in text:
+        return "College of Science\nand Mathematics"
+    
+    if "Institute of Governance, Innovations & Sustainability" in text:
+        return "Institute of Governance,\nInnovations & Sustainability"
 
-    Only runs on Windows and will silently no-op on other platforms or if ctypes is not available.
-    """
-    if platform.system().lower() != "windows":
-        return
-    if not ctypes:
-        return
-    try:
-        user32 = ctypes.windll.user32
-        # Preferred: per-monitor v2 (Windows 10+)
+    replacements = {
+        "Bachelor of Science in": "BS",
+        "Bachelor in Secondary Education": "BSED",
+        "Bachelor of Secondary Education": "BSED",
+        "Bachelor in": "Bachelor",
+        "Master of Science in": "MS",
+        "Master of Arts in": "MA",
+        "Doctor of Philosophy in": "PhD",
+        "Doctor of": "Doctor",
+        "Professional Science Masters": "PSM"
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+        
+    return textwrap.fill(text, width=25)
+
+def format_location_display(loc_code):
+    if loc_code == "UP": return "↑ Upper Floor"
+    if loc_code == "DOWN": return "↓ Lower Floor"
+    return loc_code
+
+def get_absolute_path(relative_path):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    path_a = os.path.join(script_dir, relative_path)
+    path_b = os.path.join(script_dir, "..", relative_path)
+    if os.path.exists(path_a): return path_a
+    elif os.path.exists(path_b): return path_b
+    return None
+
+def load_icon_ctk(relative_path, size=(24, 24)):
+    final_path = get_absolute_path(relative_path)
+    if final_path:
         try:
-            if hasattr(user32, "SetProcessDpiAwarenessContext"):
-                # DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4
-                user32.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
-                return
-        except Exception:
-            pass
+            pil_img = Image.open(final_path).resize(size)
+            return ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=size)
+        except Exception as e:
+            print(f"Error loading CTk image {final_path} with size {size}: {e}")
+            return None
+    else:
+        return None
 
-        # Next: shcore.SetProcessDpiAwareness (Windows 8.1+)
-        try:
-            shcore = ctypes.windll.shcore
-            shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
-            return
-        except Exception:
-            pass
-
-        # Fallback: system DPI aware
-        try:
-            user32.SetProcessDPIAware()
-        except Exception:
-            pass
-    except Exception:
-        # Any failure - don't crash the app for DPI setup
-        return
-
-
-make_dpi_aware()
-
-
+# --- 4. DATABASE FUNCTIONS ---
 def init_db():
-    """Initialize the SQLite database and create table if not exists."""
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute("""
         CREATE TABLE IF NOT EXISTS students (
@@ -105,795 +181,720 @@ def init_db():
     conn.commit()
     conn.close()
 
-window = Tk()
-
-window.geometry("996x627")
-window.configure(bg = "#FFFFFF")
-window.title("LocatR")
-# Create an icon image using the PhotoImage class imported from tkinter.
-# Use relative_to_assets so the path is resolved against the generated assets folder.
-try:
-    photo = PhotoImage(file=relative_to_assets("Logo.png"))
-    window.iconphoto(False, photo)
-except Exception:
-    # If loading the icon fails, continue without setting it.
-    photo = None
-
-
-# Main canvas for the window background
-canvas = Canvas(
-    window,
-    bg = "#FFFFFF",
-    height = 627,
-    width = 996,
-    bd = 0,
-    highlightthickness = 0,
-    relief = "ridge"
-)
-canvas.place(x = 0, y = 0)
-
-# --- SCROLLABLE STUDENT LIST AREA (fixed, non-destructive) ---
-
-list_frame = Frame(window, bg="#FFFFFF")
-list_frame.place(x=0, y=170, width=996, height=457)
-
-# Canvas for scrolling
-list_canvas = Canvas(
-    list_frame,
-    bg="#FFFFFF",
-    bd=0,
-    highlightthickness=0,
-)
-list_canvas.pack(side=LEFT, fill=BOTH, expand=True)
-
-# Scrollbar (right side)
-scrollbar = Scrollbar(list_frame, orient=VERTICAL, command=list_canvas.yview)
-scrollbar.pack(side=RIGHT, fill=Y)
-
-# Configure canvas to work with scrollbar
-list_canvas.configure(yscrollcommand=scrollbar.set)
-
-# Inner frame that actually holds the student rows
-students_frame = Frame(list_canvas, bg="#FFFFFF")
-students_window = list_canvas.create_window((0, 0), window=students_frame, anchor="nw")
-
-# Update scroll region when contents change
-def on_frame_configure(event):
-    list_canvas.configure(scrollregion=list_canvas.bbox("all"))
-
-students_frame.bind("<Configure>", on_frame_configure)
-
-# Keep inner frame width in sync with canvas width
-def on_canvas_configure(event):
-    list_canvas.itemconfig(students_window, width=event.width)
-
-list_canvas.bind("<Configure>", on_canvas_configure)
-
-# Enable smooth mouse wheel scrolling
-def _on_mousewheel(event):
-    list_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-list_canvas.bind_all("<MouseWheel>", _on_mousewheel)
-
-
-entry_image_1 = PhotoImage(
-    file=relative_to_assets("entry_11.png"))
-entry_bg_1 = canvas.create_image(
-    186.5,
-    64.0,
-    image=entry_image_1
-)
-entry_1 = Entry(
-    bd=0,
-    bg="#FFFFFF",
-    fg="#000716",
-    font=("Inter", 14),
-    highlightthickness=0
-)
-entry_1.place(
-    x=85.0,
-    y=42.5,
-    width=250.0,
-    height=45.0
-)
-# Bind search: filter students by student id or name as user types
-entry_1.bind("<KeyRelease>", lambda e: render_students())
-
-canvas.create_text(
-    40.0,
-    143.66665649414062,
-    anchor="nw",
-    text="STUDENT ID",
-    fill="#000000",
-    font=("Inter", 20 * -1)
-)
-
-canvas.create_text(
-    278.0,
-    144.0,
-    anchor="nw",
-    text="NAME",
-    fill="#000000",
-    font=("Inter", 20 * -1)
-)
-
-canvas.create_text(
-    492.0,
-    144.0,
-    anchor="nw",
-    text="COURSE",
-    fill="#000000",
-    font=("Inter", 20 * -1)
-)
-
-canvas.create_text(
-    678.0,
-    144.0,
-    anchor="nw",
-    text="LOCATION",
-    fill="#000000",
-    font=("Inter", 20 * -1)
-)
-
-canvas.create_text(
-    862.0,
-    143.66665649414062,
-    anchor="nw",
-    text="ACTION",
-    fill="#000000",
-    font=("Inter", 20 * -1)
-)
-
-canvas.create_rectangle(
-    -1.0,
-    128.0,
-    996.00048828125,
-    129.0,
-    fill="#C2B9B9",
-    outline="")
-
-button_image_1 = PhotoImage(
-    file=relative_to_assets("button_11.png"))
-button_1 = Button(
-    image=button_image_1,
-    borderwidth=0,
-    highlightthickness=0,
-    command=lambda: open_add_student_window(),
-    relief="flat"
-)
-button_1.place(
-    x=729.0,
-    y=27.0,
-    width=245.0,
-    height=73.0
-)
-
-# Preload the edit icon once and keep a reference to avoid it being garbage-collected
-try:
-    button_image_2 = Image.open(relative_to_assets("button_edit.png"))
-    button_image_2 = button_image_2.resize((80, 26))
-    button_image_2 = ImageTk.PhotoImage(button_image_2)
-    
-    print("success")
-except Exception as e:
-    button_image_2 = None
-    print(e)
-
-# Background for list area
-canvas.create_rectangle(
-    0.0,
-    170.0,
-    996.0,
-    627.0,
-    fill="#FFFFFF",
-    outline="")
-
-# --- Student data and UI management ---
-
-# Constants for text display
-MAX_NAME_LENGTH = 25  # characters
-MAX_COURSE_LENGTH = 20  # characters
-
-def validate_student_id(student_id: str) -> tuple[bool, str]:
-    """Validate student ID: must be exactly 10 digits."""
-    if not student_id:
-        return False, "Student ID is required."
-    if not student_id.isdigit():
-        return False, "Student ID must contain only numbers."
-    if len(student_id) != 10:
-        return False, "Student ID must be exactly 10 digits."
-    return True, ""
-
-def validate_name(name: str) -> tuple[bool, str]:
-    """Validate name: cannot contain numbers."""
-    if not name or not name.strip():
-        return False, "Name is required."
-    if any(char.isdigit() for char in name):
-        return False, "Name cannot contain numbers."
-    return True, ""
-
-def validate_course(course: str) -> tuple[bool, str]:
-    """Validate course: cannot contain numbers."""
-    if not course or not course.strip():
-        return False, "Course is required."
-    if any(char.isdigit() for char in course):
-        return False, "Course cannot contain numbers."
-    return True, ""
-
-def truncate_text(text: str, max_length: int) -> str:
-    """Truncate text and add ellipsis if too long."""
-    if len(text) <= max_length:
-        return text
-    return text[:max_length-3] + "..."
-
-
-def load_students_from_db():
-    """Load all student records from the SQLite database."""
-    students.clear()
-    conn = sqlite3.connect(DB_PATH)
+def fetch_students(search_query="", course_filter=None):
+    conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT student_id, name, course, location FROM students")
+    query = "SELECT student_id, name, course, location FROM students WHERE 1=1"
+    params = []
+    if course_filter:
+        query += " AND course LIKE ?"
+        params.append(f"%{course_filter}%")
+    if search_query:
+        query += " AND (student_id LIKE ? OR name LIKE ?)"
+        params.append(f"%{search_query}%")
+        params.append(f"%{search_query}%")
+    cur.execute(query, tuple(params))
     rows = cur.fetchall()
     conn.close()
+    return [{"id": r[0], "name": r[1], "course": r[2], "loc": r[3]} for r in rows]
 
-    for r in rows:
-        students.append({
-            "student_id": r[0],
-            "name": r[1],
-            "course": r[2],
-            "location": r[3],
-        })
-
-
-def save_students_to_db():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-
-    # Clear table
-    cur.execute("DELETE FROM students")
-
-    # Insert all in-memory student records
-    for s in students:
-        cur.execute(
-            "INSERT INTO students (student_id, name, course, location) VALUES (?, ?, ?, ?)",
-            (s.get("student_id", ""), s.get("name", ""), s.get("course", ""), s.get("location", "")),
-        )
-
-    conn.commit()
-    conn.close()
-
-
-def render_students() -> None:
-    # Clear previous content
-    for widget in students_frame.winfo_children():
-        widget.destroy()
-    action_buttons.clear()
-
-    # Determine which students match the search query (student id or name)
-    query = ""
+def save_student_to_db(sid, name, course, loc):
     try:
-        query = entry_1.get().strip().lower()
-    except Exception:
-        query = ""
-
-    visible = []
-    if query:
-        for i, s in enumerate(students):
-            if query in str(s.get("student_id", "")).lower() or query in str(s.get("name", "")).lower():
-                visible.append((i, s))
-    else:
-        visible = list(enumerate(students))
-
-    row_height = 46
-    for row_pos, (idx, s) in enumerate(visible):
-        # Create a frame for this row
-        row_frame = Frame(students_frame, bg="#FFFFFF", height=row_height)
-        row_frame.pack(fill="x", pady=4)
-        row_frame.pack_propagate(False)  # Maintain fixed height
-
-        # Calculate y position for consistent spacing
-        y = row_height/2  # Center text vertically in row
-        
-        # Student ID (fixed width, no truncation needed)
-        Label(row_frame, 
-              text=s.get("student_id", ""),
-              font=("Inter", 13),
-              bg="#FFFFFF",
-              anchor="w").place(x=40, y=y-10, width=150)
-        
-        # Name (truncated if too long)
-        Label(row_frame,
-              text=truncate_text(s.get("name", ""), MAX_NAME_LENGTH),
-              font=("Inter", 13),
-              bg="#FFFFFF",
-              anchor="w").place(x=230, y=y-10, width=200)
-        
-        # Course (truncated if too long)
-        Label(row_frame,
-              text=truncate_text(s.get("course", ""), MAX_COURSE_LENGTH),
-              font=("Inter", 13),
-              bg="#FFFFFF",
-              anchor="w").place(x=450, y=y-10, width=200)
-        
-        # Location (usually short, no truncation needed)
-        Label(row_frame,
-              text=s.get("location", ""),
-              font=("Inter", 13),
-              bg="#FFFFFF",
-              anchor="w").place(x=695, y=y-10, width=100)
-
-        # Create an Edit button for each row (opens edit dialog with delete)
-        if button_image_2:
-            btn = Button(row_frame, 
-                         image=button_image_2, 
-                         borderwidth=0, 
-                         highlightthickness=0, 
-                         command=lambda i=idx: open_edit_student_window(i),  
-                         relief="flat",
-                         bg="#FFFFFF"
-            ) # keep reference on the widget
-            btn.image = button_image_2
-        else:
-            btn = Button(row_frame, text="Edit", command=lambda i=idx: open_edit_student_window(i))
-        # Place button near the ACTION column
-        btn_width = 80
-        btn_height = 26
-        # Place within the row frame
-        btn.place(x=855, y=btn_height/2, width=btn_width, height=btn_height)
-        action_buttons.append(btn)
-
-
-def delete_student(index: int) -> None:
-    try:
-        students.pop(index)
-        save_students_to_db()
-        render_students()
-    except Exception:
-        pass
-
-def open_add_student_window() -> None:
-
-    # --- WINDOW SETUP ---
-    win = Toplevel(window)
-    win.title("Add Student")
-    win.geometry("420x290")
-    win.configure(bg="#FFFFFF")
-    win.resizable(False, False)
-    try:
-        logo = PhotoImage(file=relative_to_assets("Logo.png"))
-        win.iconphoto(False, logo)
-        win.logo = logo  # keep a reference to prevent garbage collection
-    except Exception as e:
-        print("Logo not loaded:", e)
-
-    # --- CANVAS DESIGN ---
-    canvas = Canvas(
-        win,
-        bg="#FFFFFF",
-        height=290,
-        width=420,
-        bd=0,
-        highlightthickness=0,
-        relief="ridge"
-    )
-    canvas.place(x=0, y=0)
-
-    # --- LABELS (drawn text) ---
-    canvas.create_text(
-        20.0, 44.0,
-        anchor="nw",
-        text="Student ID:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    canvas.create_text(
-        62.0, 92.0,
-        anchor="nw",
-        text="Name:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    canvas.create_text(
-        50.0, 139.0,
-        anchor="nw",
-        text="Course:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    canvas.create_text(
-        38.0, 187.0,
-        anchor="nw",
-        text="Location:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    # --- TEXTBOXES / ENTRY FIELDS ---
-    entry_image_1 = PhotoImage(file=relative_to_assets("entry_1.png"))
-    entry_bg_1 = canvas.create_image(262.38, 52.8, image=entry_image_1)
-    id_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    id_entry.place(x=138, y=38.0, width=250.23, height=30.6)
-
-    entry_image_2 = PhotoImage(file=relative_to_assets("entry_2.png"))
-    entry_bg_2 = canvas.create_image(262.38, 107.37, image=entry_image_2)
-    name_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    name_entry.place(x=138, y=85, width=250.23, height=30.6)
-
-    entry_image_3 = PhotoImage(file=relative_to_assets("entry_3.png"))
-    entry_bg_3 = canvas.create_image(262.38, 149.62, image=entry_image_3)
-    course_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    course_entry.place(x=138, y=135, width=250.23, height=30.6)
-
-    # --- LOCATION RADIO BUTTONS ---
-    loc_var = StringVar(value="UP")
-
-    radio_up = Radiobutton(
-        win,
-        text="UP",
-        variable=loc_var,
-        value="UP",
-        bg="#FFFFFF",
-        font=("Inter", 12)
-    )
-    radio_up.place(x=140, y=185)
-
-    radio_down = Radiobutton(
-        win,
-        text="DOWN",
-        variable=loc_var,
-        value="DOWN",
-        bg="#FFFFFF",
-        font=("Inter", 12)
-    )
-    radio_down.place(x=200, y=185)
-
-    # --- FUNCTIONALITY (SAVE + CANCEL) ---
-    def on_save():
-        sid = id_entry.get().strip()
-        name = name_entry.get().strip()
-        course = course_entry.get().strip()
-        location = loc_var.get().strip()
-
-        valid_id, id_error = validate_student_id(sid)
-        if not valid_id:
-            messagebox.showerror("Validation Error", id_error)
-            return
-        
-        valid_name, name_error = validate_name(name)
-        if not valid_name:
-            messagebox.showerror("Validation Error", name_error)
-            return
-
-        valid_course, course_error = validate_course(course)
-        if not valid_course:
-            messagebox.showerror("Validation Error", course_error)
-            return
-
-        conn = sqlite3.connect(DB_PATH)
+        conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-        try:
-            cur.execute(
-                "INSERT INTO students (student_id, name, course, location) VALUES (?, ?, ?, ?)",
-                (sid, name, course, location),
-            )
-            conn.commit()
-            messagebox.showinfo("Success", "Student added successfully!")
-            load_students_from_db()
-            render_students()
-            win.destroy()
-        except sqlite3.IntegrityError:
-            messagebox.showerror("Error", "Student ID already exists. Please use a unique ID.")
-        finally:
-            conn.close()
-
-
-    # --- BUTTONS (DESIGNED IMAGES) ---
-    button_image_1 = PhotoImage(file=relative_to_assets("button_2.png"))
-    button_image_2 = PhotoImage(file=relative_to_assets("button_1.png"))
-
-    # Place buttons directly in window, not over canvas drawings
-    save_button = Button(
-        win,
-        image=button_image_1,
-        borderwidth=0,
-        highlightthickness=0,
-        command=on_save,     # will now trigger properly
-        relief="flat",
-        bg="#FFFFFF",
-        activebackground="#FFFFFF",
-        cursor="hand2"
-    )
-    save_button.place(x=214.28, y=245.99, width=76.19, height=22.00)
-
-    cancel_button = Button(
-        win,
-        image=button_image_2,
-        borderwidth=0,
-        highlightthickness=0,
-        command=win.destroy,
-        relief="flat",
-        bg="#FFFFFF",
-        activebackground="#FFFFFF",
-        cursor="hand2"
-    )
-    cancel_button.place(x=120.0, y=245.99, width=76.19, height=22.00)
-
-    # Keep references so images aren’t garbage collected
-    win.entry_images = [
-        entry_image_1, entry_image_2, entry_image_3,
-        button_image_1, button_image_2
-    ]
-
-    # Raise buttons above canvas (important!)
-    save_button.lift()
-    cancel_button.lift()
-
-
-
-def open_edit_student_window(index: int) -> None:
-    # Edit an existing student; the Delete action is available here
-    try:
-        s = students[index]
+        cur.execute("INSERT OR REPLACE INTO students VALUES (?, ?, ?, ?)", (sid, name, course, loc))
+        conn.commit()
+        conn.close()
+        return True
     except Exception:
-        return
+        return False
 
-    # --- WINDOW SETUP ---
-    win = Toplevel(window)
-    win.title("Edit Student")
-    win.geometry("420x290")
-    win.configure(bg="#FFFFFF")
-    win.resizable(False, False)
+def delete_student_from_db(sid):
     try:
-        logo = PhotoImage(file=relative_to_assets("Logo.png"))
-        win.iconphoto(False, logo)
-        win.logo = logo  # keep a reference to prevent garbage collection
-    except Exception as e:
-        print("Logo not loaded:", e)
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM students WHERE student_id = ?", (sid,))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
 
-    # --- CANVAS DESIGN ---
-    canvas = Canvas(
-        win,
-        bg="#FFFFFF",
-        height=290,
-        width=420,
-        bd=0,
-        highlightthickness=0,
-        relief="ridge"
-    )
-    canvas.place(x=0, y=0)
+def update_student_location(sid, new_loc):
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("UPDATE students SET location = ? WHERE student_id = ?", (new_loc, sid))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception:
+        return False
 
-    # --- LABELS (drawn text) ---
-    canvas.create_text(
-        20.0, 44.0,
-        anchor="nw",
-        text="Student ID:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
+# --- 5. MAIN APPLICATION ---
+class LocatRApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+        self.title("LocatR - Student Record Locator System")
+        self.geometry("1360x800")
+        self.configure(fg_color=COLOR_BG)
 
-    canvas.create_text(
-        62.0, 92.0,
-        anchor="nw",
-        text="Name:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    canvas.create_text(
-        50.0, 139.0,
-        anchor="nw",
-        text="Course:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    canvas.create_text(
-        38.0, 187.0,
-        anchor="nw",
-        text="Location:",
-        fill="#000000",
-        font=("Inter", 18 * -1)
-    )
-
-    # --- TEXTBOXES / ENTRY FIELDS ---
-    entry_image_1 = PhotoImage(file=relative_to_assets("entry_1.png"))
-    entry_bg_1 = canvas.create_image(262.38, 52.8, image=entry_image_1)
-    id_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    id_entry.place(x=138, y=38.0, width=250.23, height=30.6)
-    id_entry.insert(0, s.get("student_id", ""))
-
-    entry_image_2 = PhotoImage(file=relative_to_assets("entry_2.png"))
-    entry_bg_2 = canvas.create_image(262.38, 107.37, image=entry_image_2)
-    name_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    name_entry.place(x=138, y=85, width=250.23, height=30.6)
-    name_entry.insert(0, s.get("name", ""))
-
-    entry_image_3 = PhotoImage(file=relative_to_assets("entry_3.png"))
-    entry_bg_3 = canvas.create_image(262.38, 149.62, image=entry_image_3)
-    course_entry = Entry(
-        win,
-        bd=0,
-        bg="#FFFFFF",
-        fg="#000716",
-        highlightthickness=0,
-        font=("Inter", 12)
-    )
-    course_entry.place(x=138, y=135, width=250.23, height=30.6)
-    course_entry.insert(0, s.get("course", ""))
-
-    # --- LOCATION RADIO BUTTONS ---
-    loc_var = StringVar(value=s.get("location", "UP"))
-
-    radio_up = Radiobutton(
-        win,
-        text="UP",
-        variable=loc_var,
-        value="UP",
-        bg="#FFFFFF",
-        font=("Inter", 12)
-    )
-    radio_up.place(x=140, y=185)
-
-    radio_down = Radiobutton(
-        win,
-        text="DOWN",
-        variable=loc_var,
-        value="DOWN",
-        bg="#FFFFFF",
-        font=("Inter", 12)
-    )
-    radio_down.place(x=200, y=185)
-
-    def on_save() -> None:
-        sid = id_entry.get().strip()
-        name = name_entry.get().strip()
-        course = course_entry.get().strip()
-        location = loc_var.get().strip()
-        
-        # Validate each field
-        valid_id, id_error = validate_student_id(sid)
-        if not valid_id:
-            messagebox.showerror("Validation Error", id_error)
-            id_entry.focus()
-            return
-
-        valid_name, name_error = validate_name(name)
-        if not valid_name:
-            messagebox.showerror("Validation Error", name_error)
-            name_entry.focus()
-            return
-
-        valid_course, course_error = validate_course(course)
-        if not valid_course:
-            messagebox.showerror("Validation Error", course_error)
-            course_entry.focus()
-            return
-
-        # All validations passed, update the data
         try:
-            students[index] = {"student_id": sid, "name": name, "course": course, "location": location}
-            save_students_to_db()
-            render_students()
-        except Exception:
-            messagebox.showerror("Validation Error: Student ID must be unique.")
-        messagebox.showinfo("Success", "Student updated successfully!")
-        try:
-            win.destroy()
+            myappid = 'locatr.registrar.system.v1'
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
         except Exception:
             pass
 
-    def on_delete() -> None:
-        if messagebox.askyesno("Confirm", "Delete this student?"):
+        icon_abs_path = get_absolute_path("assets/frame0/app-icon.png")
+        if icon_abs_path:
             try:
-                students.pop(index)
-                save_students_to_db()
-                render_students()
-            except Exception:
-                pass
+                pil_img = Image.open(icon_abs_path)
+                self.icon_photo = ImageTk.PhotoImage(pil_img)
+                self.wm_iconphoto(True, self.icon_photo)
+            except Exception as e:
+                print(f"Could not set window icon: {e}")
+
+        # --- GRID LAYOUT UPDATE ---
+        self.grid_columnconfigure(0, weight=0) # Sidebar
+        self.grid_columnconfigure(1, weight=0) # Separator
+        self.grid_columnconfigure(2, weight=1) # Main Content
+        self.grid_rowconfigure(0, weight=1)
+
+        init_db()
+        self.current_view_data = None
+        
+        # Load Resources
+        self.loaded_icons = {} 
+        self.homepage_icons = {} 
+        
+        for college, data in UNIVERSITY_STRUCTURE.items():
+            # SIDEBAR: Smaller icons (18x18) for compact list
+            self.loaded_icons[college] = load_icon_ctk(data["icon_path"], size=(18, 18))
+            # HOMEPAGE: Large icons (80x80)
+            self.homepage_icons[college] = load_icon_ctk(data["icon_path"], size=(80, 80))
+        
+        self.full_branding_img = load_icon_ctk("assets/frame0/full_branding.png", size=(250, 60))
+        
+        self.setup_sidebar()
+        self.setup_main_area()
+        
+        def global_focus_handler(event):
             try:
-                win.destroy()
-            except Exception:
+                if event.widget != self.search_entry._entry:
+                    self.focus()
+            except:
                 pass
+        
+        self.bind("<Button-1>", global_focus_handler)
 
-    # --- BUTTONS ---
-    # Create styled buttons without images first
-    save = PhotoImage(file=relative_to_assets("button_2.png"))
-    cancel = PhotoImage(file=relative_to_assets("button_1.png"))
-    delete = PhotoImage(file=relative_to_assets("button_3.png"))
-    
-    save_button = Button(
-        win,
-        image=save,
-        text="Save",
-        borderwidth=0,
-        highlightthickness=0,
-        command=on_save,
-        relief="flat",
-        bg="#FFFFFF",
-        activebackground="#FFFFFF",
-        cursor="hand2"
-    )
-    save_button.place(x=255, y=245, width=80, height=26)
+        self.show_homepage()
 
+    # --- SETUP_SIDEBAR ---
+    def setup_sidebar(self):
+        self.sidebar = ctk.CTkFrame(self, width=360, corner_radius=0, fg_color=COLOR_SIDEBAR)
+        self.sidebar.grid(row=0, column=0, sticky="nsew")
+        
+        self.separator = ctk.CTkFrame(self, width=2, fg_color=COLOR_SEPARATOR)
+        self.separator.grid(row=0, column=1, sticky="ns", padx=(0,0))
 
-    delete_button = Button(
-        win,
-        image=delete,
-        borderwidth=0,
-        highlightthickness=0,
-        command=on_delete,
-        relief="flat",
-        bg="#FFFFFF",
-        activebackground="#FFFFFF",
-        cursor="hand2"
-    )
-    delete_button.place(x=170, y=245, width=80, height=26)
+        # --- 1. SPACIOUS LOGO AREA ---
+        logo_btn = ctk.CTkButton(
+            self.sidebar, 
+            fg_color="transparent", 
+            hover_color=COLOR_BG,
+            command=self.show_homepage
+        )
+        logo_btn.pack(pady=(30, 20), padx=30, anchor="w")
+        
+        if self.full_branding_img:
+            logo_btn.configure(text="", image=self.full_branding_img, width=250, anchor="w")
+        else:
+            logo_btn.configure(text="LocatR System", font=(FONT_MAIN, 24, "bold"), text_color=COLOR_ACCENT, anchor="w")
 
-    cancel_button = Button(
-        win,
-        image=cancel,
-        borderwidth=0,
-        highlightthickness=0,
-        command=win.destroy,
-        relief="flat",
-        bg="#FFFFFF",
-        activebackground="#FFFFFF",
-        cursor="hand2"
-    )
-    cancel_button.place(x=85, y=245, width=80, height=26)
+        # --- 2. SPACIOUS USER INFO ---
+        profile_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        profile_frame.pack(fill="x", padx=30, pady=(0, 20))
+        
+        info_frame = ctk.CTkFrame(profile_frame, fg_color="transparent")
+        info_frame.pack(side="left")
+        ctk.CTkLabel(info_frame, text="Office of the University Registrar", font=(FONT_MAIN, 14, "bold"), text_color="black").pack(anchor="w")
+        ctk.CTkLabel(info_frame, text="USTP CDO", font=(FONT_MAIN, 12), text_color="gray").pack(anchor="w")
 
-    # Keep entry image references
-    win.entry_images = [
-        entry_image_1, entry_image_2, entry_image_3, save, cancel, delete
-    ]
+        # --- 3. SPACIOUS ADD BUTTON ---
+        self.add_btn = ctk.CTkButton(
+            self.sidebar, 
+            text="+ Add Student",
+            font=(FONT_MAIN, 14, "bold"),
+            fg_color=COLOR_ACCENT,
+            text_color="white",
+            height=50, 
+            corner_radius=8,
+            command=self.open_add_modal
+        )
+        self.add_btn.pack(fill="x", padx=30, pady=(10, 10))
 
-    # Ensure buttons are visible
-    save_button.lift()
-    delete_button.lift()
-    cancel_button.lift()
+        # --- 4. SPACIOUS HOME BUTTON ---
+        self.home_btn = ctk.CTkButton(
+            self.sidebar,
+            text="Home",
+            compound="left",
+            anchor="w",
+            fg_color="transparent",
+            text_color=COLOR_ACCENT,
+            hover_color=COLOR_HOVER,
+            font=(FONT_MAIN, 14, "bold"), 
+            height=40,
+            command=self.show_homepage
+        )
+        self.home_btn.pack(fill="x", padx=30, pady=(5, 5))
 
+        # --- 5. SPACIOUS SEPARATOR ---
+        self.sidebar_line = ctk.CTkFrame(self.sidebar, height=2, fg_color=COLOR_SEPARATOR)
+        self.sidebar_line.pack(fill="x", padx=30, pady=(10, 15))
 
-# Load any existing students and render them
-init_db()
-load_students_from_db()
-render_students()
-window.resizable(False, False)
-window.mainloop()
+        # --- 6. CATEGORY LABEL ---
+        ctk.CTkLabel(self.sidebar, text="ACADEMIC UNITS", text_color="gray", font=(FONT_MAIN, 11, "bold")).pack(anchor="w", padx=30, pady=(0,5))
+        
+        # --- 7. COMPACT LIST ---
+        self.nav_frame = ctk.CTkScrollableFrame(self.sidebar, width=340, fg_color="transparent", 
+                                                scrollbar_button_color="white", scrollbar_button_hover_color="white")
+        self.nav_frame.pack(fill="both", expand=True, pady=2)
+
+        for college, data in UNIVERSITY_STRUCTURE.items():
+            display_name = college
+            if len(display_name) > 38:
+                display_name = display_name[:36] + "..."
+            
+            icon_img = self.loaded_icons.get(college) 
+            
+            sidebar_btn = ctk.CTkButton(
+                self.nav_frame,
+                text=f"  {display_name}",
+                image=icon_img,
+                compound="left",
+                anchor="w",
+                fg_color="transparent",
+                text_color=COLOR_TEXT_NAV,
+                hover_color=COLOR_HOVER,
+                font=(FONT_MAIN, 11), # Smaller font
+                height=32,            # Compact height
+                command=lambda c=college: self.show_program_grid(c)
+            )
+            sidebar_btn.pack(fill="x", pady=1, padx=15)
+
+    def setup_main_area(self):
+        self.main_frame = ctk.CTkFrame(self, fg_color=COLOR_BG)
+        self.main_frame.grid(row=0, column=2, sticky="nsew", padx=(40, 0), pady=40)
+
+        self.top_bar = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.top_bar.pack(fill="x", pady=(0, 10), padx=(0, 40))
+
+        self.search_entry = ctk.CTkEntry(
+            self.top_bar,
+            placeholder_text="Search Student ID or Name...",
+            width=300,
+            height=40,
+            corner_radius=20,
+            border_width=1,
+            border_color="#CBD5E1",
+            fg_color="white",
+            text_color="black",
+            font=(FONT_MAIN, 12)
+        )
+        self.search_entry.pack(side="right")
+        self.search_entry.bind("<Return>", self.perform_search)
+        
+        def on_search_focus_out(event):
+            self.search_entry.delete(0, "end")
+            
+        self.search_entry.bind("<FocusOut>", on_search_focus_out)
+
+        self.sticky_header = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.sticky_header.pack(fill="x", padx=(0, 40)) 
+
+        self.content_area = ctk.CTkScrollableFrame(
+            self.main_frame, 
+            fg_color="transparent",
+            scrollbar_button_color="#F1F5F9",        
+            scrollbar_button_hover_color="#CBD5E1",  
+            width=900                                
+        )
+        self.content_area.pack(fill="both", expand=True)
+
+    def render_student_table_header(self, parent_frame, show_program=False):
+        thead = ctk.CTkFrame(parent_frame, fg_color="transparent", height=30)
+        thead.pack(fill="x", pady=(10, 5))
+        
+        ctk.CTkLabel(thead, text="Student ID", font=(FONT_MAIN, 12, "bold"), text_color="black", width=120, anchor="w").pack(side="left", padx=10)
+        ctk.CTkLabel(thead, text="Name", font=(FONT_MAIN, 12, "bold"), text_color="black", width=250, anchor="w").pack(side="left", padx=10)
+        
+        if show_program:
+            ctk.CTkLabel(thead, text="Program", font=(FONT_MAIN, 12, "bold"), text_color="black", width=250, anchor="w").pack(side="left", padx=10)
+            
+        ctk.CTkLabel(thead, text="Location", font=(FONT_MAIN, 12, "bold"), text_color="black", width=120, anchor="w").pack(side="left", padx=10)
+        ctk.CTkLabel(thead, text="Actions", font=(FONT_MAIN, 12, "bold"), text_color="black", width=160, anchor="center").pack(side="right", padx=10)
+
+    def render_student_row(self, parent_frame, s, show_program=False):
+        row = ctk.CTkFrame(parent_frame, fg_color="white", corner_radius=6, border_width=1, border_color="#F1F5F9", height=50)
+        row.pack(fill="x", pady=2, padx=(0, 20))
+        
+        ctk.CTkLabel(row, text=s['id'], font=(FONT_MAIN, 13), text_color=COLOR_ACCENT, width=120, anchor="w").pack(side="left", padx=10)
+        
+        name_btn = ctk.CTkButton(
+            row, 
+            text=s['name'], 
+            font=(FONT_MAIN, 13, "bold"), 
+            text_color=COLOR_ACCENT, 
+            fg_color="transparent", 
+            hover_color=COLOR_HOVER,
+            anchor="w",
+            width=250,
+            command=lambda sid=s['id'], name=s['name']: self.open_qr_modal(sid, name)
+        )
+        name_btn.pack(side="left", padx=10)
+        
+        if show_program:
+            prog_txt = s['course']
+            if len(prog_txt) > 35: prog_txt = prog_txt[:32] + "..."
+            ctk.CTkLabel(row, text=prog_txt, font=(FONT_MAIN, 12), text_color="gray", width=250, anchor="w").pack(side="left", padx=10)
+
+        loc_display = format_location_display(s['loc'])
+        loc_col = COLOR_UP if "UP" in s['loc'] else COLOR_DOWN
+        ctk.CTkLabel(row, text=loc_display, font=(FONT_MAIN, 12), text_color=loc_col, width=120, anchor="w").pack(side="left", padx=10)
+
+        action_frame = ctk.CTkFrame(row, fg_color="transparent", width=160)
+        action_frame.pack(side="right", padx=10)
+        action_frame.grid_columnconfigure(0, weight=1)
+        action_frame.grid_columnconfigure(1, weight=1)
+        
+        ctk.CTkButton(action_frame, text="Edit", width=60, height=25, fg_color="#E0A800", font=(FONT_MAIN, 11),
+                      command=lambda sid=s['id'], loc=s['loc']: self.open_edit_modal(sid, loc)).grid(row=0, column=0, padx=5)
+        ctk.CTkButton(action_frame, text="Delete", width=60, height=25, fg_color="#DC2626", font=(FONT_MAIN, 11),
+                      command=lambda sid=s['id']: self.delete_student(sid)).grid(row=0, column=1, padx=5)
+
+    def show_homepage(self):
+        self.clear_content()
+        self.current_view_data = None
+
+        title = ctk.CTkLabel(self.sticky_header, text="Academic Units", font=(FONT_MAIN, 28, "bold"), text_color=COLOR_ACCENT)
+        title.pack(anchor="w", pady=(0, 10))
+        
+        subtitle = ctk.CTkLabel(self.sticky_header, text="Select a college or department to view programs.", font=(FONT_MAIN, 14), text_color="gray")
+        subtitle.pack(anchor="w", pady=(0, 20))
+
+        grid_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        grid_frame.pack(fill="both", expand=True, padx=(0, 20))
+        grid_frame.grid_columnconfigure((0,1,2), weight=1)
+
+        colleges = list(UNIVERSITY_STRUCTURE.keys())
+        for i, col_name in enumerate(colleges):
+            display_text = smart_break_text(col_name) 
+            icon = self.homepage_icons.get(col_name) 
+
+            card = ctk.CTkButton(
+                grid_frame,
+                text=display_text,
+                image=icon,
+                compound="top",
+                font=(FONT_MAIN, 13, "bold"), 
+                fg_color="white",
+                text_color=COLOR_ACCENT,
+                border_width=1,
+                border_color="#E2E8F0",
+                hover_color=COLOR_HOVER,
+                height=150,
+                corner_radius=12,
+                command=lambda c=col_name: self.show_program_grid(c)
+            )
+            card.grid(row=i//3, column=i%3, padx=10, pady=10, sticky="nsew")
+
+    def show_program_grid(self, college_name):
+        self.clear_content()
+        self.current_view_data = None
+        
+        title = ctk.CTkLabel(self.sticky_header, text="Academic Programs", font=(FONT_MAIN, 28, "bold"), text_color=COLOR_ACCENT)
+        title.pack(anchor="w", pady=(0, 10))
+        
+        subtitle = ctk.CTkLabel(self.sticky_header, text=college_name, font=(FONT_MAIN, 16), text_color="gray")
+        subtitle.pack(anchor="w", pady=(0, 20))
+
+        grid_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
+        grid_frame.pack(fill="both", expand=True, padx=(0, 20))
+        grid_frame.grid_columnconfigure((0,1,2), weight=1)
+
+        programs = UNIVERSITY_STRUCTURE[college_name]["programs"]
+
+        for i, prog in enumerate(programs):
+            display_text = smart_break_text(prog["name"])
+            card = ctk.CTkButton(
+                grid_frame,
+                text=display_text,
+                font=(FONT_MAIN, 13, "bold"), 
+                fg_color="white",
+                text_color=COLOR_ACCENT,
+                border_width=1,
+                border_color="#E2E8F0",
+                hover_color=COLOR_HOVER,
+                height=100,
+                corner_radius=12,
+                command=lambda p=prog: self.show_student_list(p)
+            )
+            card.grid(row=i//3, column=i%3, padx=10, pady=10, sticky="nsew")
+
+    def show_student_list(self, program_data):
+        self.clear_content()
+        self.current_view_data = program_data 
+        
+        header_row = ctk.CTkFrame(self.sticky_header, fg_color="transparent")
+        header_row.pack(fill="x", pady=(0, 20))
+        
+        college_of_program = "College of Information Technology and Computing" 
+        for col, data in UNIVERSITY_STRUCTURE.items():
+            if any(p == program_data for p in data["programs"]):
+                college_of_program = col
+                break
+        
+        back_btn = ctk.CTkButton(header_row, text="← Back", width=80, fg_color="#E2E8F0", text_color="black", hover_color="#CBD5E1", 
+                                 font=(FONT_MAIN, 12), command=lambda: self.show_program_grid(college_of_program))
+        back_btn.pack(side="left", padx=(0, 15))
+
+        prog_title = program_data["name"]
+        if len(prog_title) > 50: prog_title = prog_title[:47] + "..."
+        ctk.CTkLabel(header_row, text=prog_title, font=(FONT_MAIN, 20, "bold"), text_color=COLOR_ACCENT).pack(side="left")
+
+        self.render_student_table_header(self.sticky_header, show_program=False)
+
+        students = fetch_students(course_filter=program_data["db_filter"])
+
+        if not students:
+            ctk.CTkLabel(self.content_area, text="No students found in this program.", text_color="gray", font=(FONT_MAIN, 12)).pack(pady=20, padx=(0, 20))
+
+        for s in students:
+            self.render_student_row(self.content_area, s, show_program=False)
+
+    def perform_search(self, event=None):
+        query = self.search_entry.get()
+        if not query: return
+        self.clear_content()
+        self.current_view_data = None
+        
+        ctk.CTkLabel(self.sticky_header, text=f"Search Results for: '{query}'", font=(FONT_MAIN, 20, "bold"), text_color=COLOR_ACCENT).pack(anchor="w", pady=20)
+        self.render_student_table_header(self.sticky_header, show_program=True)
+
+        students = fetch_students(search_query=query)
+        if not students:
+            ctk.CTkLabel(self.content_area, text="No matching students found.", text_color="gray", font=(FONT_MAIN, 12)).pack(pady=20, padx=(0, 20))
+            return
+
+        for s in students:
+            self.render_student_row(self.content_area, s, show_program=True)
+
+    # --- QR MODAL ---
+    def open_qr_modal(self, sid, name):
+        toplevel = ctk.CTkToplevel(self)
+        toplevel.geometry("350x480")
+        toplevel.title(f"QR for {sid}")
+        
+        if hasattr(self, 'icon_photo'):
+             toplevel.after(200, lambda: toplevel.iconphoto(False, self.icon_photo))
+        
+        toplevel.configure(fg_color="white")
+        toplevel.attributes("-topmost", True)
+
+        ctk.CTkLabel(toplevel, text="Student Record QR", font=(FONT_MAIN, 18, "bold"), text_color=COLOR_ACCENT).pack(pady=(20, 10))
+
+        qr_data = f"Student ID: {sid}\nName: {name}"
+        qr_pil_img = None 
+        
+        try:
+            qr = qrcode.QRCode(version=1, box_size=10, border=2)
+            qr.add_data(qr_data)
+            qr.make(fit=True)
+            qr_pil_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+            qr_ctk_img = ctk.CTkImage(light_image=qr_pil_img, dark_image=qr_pil_img, size=(220, 220))
+            
+            ctk.CTkLabel(toplevel, text="", image=qr_ctk_img).pack(pady=10)
+            ctk.CTkLabel(toplevel, text=name, font=(FONT_MAIN, 14, "bold"), text_color="black").pack(pady=(10,0))
+            ctk.CTkLabel(toplevel, text=sid, font=(FONT_MAIN, 12), text_color="gray").pack()
+
+        except Exception as e:
+            ctk.CTkLabel(toplevel, text=f"Error generating QR: {e}", text_color="red").pack()
+            return
+
+        def save_qr_code():
+            if qr_pil_img is None:
+                messagebox.showerror("Error", "QR code image not generated.")
+                return
+
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".png",
+                initialfile=f"QR_{sid}_{name.replace(' ', '_')}.png",
+                filetypes=[("PNG files", "*.png"), ("All files", "*.*")]
+            )
+
+            if file_path:
+                try:
+                    qr_pil_img.save(file_path)
+                    messagebox.showinfo("Success", f"QR Code saved to:\n{file_path}")
+                except Exception as e:
+                    messagebox.showerror("Save Error", f"Failed to save file: {e}")
+
+        save_btn = ctk.CTkButton(toplevel, text="💾 Save QR Code (PNG)", fg_color=COLOR_UP, hover_color="#047857", width=220, command=save_qr_code)
+        save_btn.pack(pady=(15, 5))
+        ctk.CTkButton(toplevel, text="Close", fg_color=COLOR_NEUTRAL, hover_color=COLOR_NEUTRAL_HOVER, width=220, command=toplevel.destroy).pack(pady=(5, 20))
+
+    # --- MODALS (UPDATED WITH VALIDATION & PLACEHOLDERS) ---
+    def open_add_modal(self):
+        toplevel = ctk.CTkToplevel(self)
+        toplevel.geometry("450x650") 
+        toplevel.title("Add Student")
+        if hasattr(self, 'icon_photo'):
+             toplevel.after(200, lambda: toplevel.iconphoto(False, self.icon_photo))
+             
+        toplevel.configure(fg_color="white")
+        toplevel.attributes("-topmost", True)
+
+        ctk.CTkLabel(toplevel, text="Add New Student", font=(FONT_MAIN, 22, "bold"), text_color=COLOR_ACCENT).pack(pady=(20, 5))
+
+        def create_entry(label_text, placeholder=""):
+            ctk.CTkLabel(toplevel, text=label_text, text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(2,0)) 
+            entry = ctk.CTkEntry(
+                toplevel, 
+                placeholder_text=placeholder,
+                fg_color="#F8FAFC", 
+                border_width=1, 
+                border_color="#E2E8F0", 
+                text_color="black", 
+                height=35, 
+                font=(FONT_MAIN, 12)
+            )
+            entry.pack(fill="x", padx=40, pady=(2, 0)) 
+            err = ctk.CTkLabel(toplevel, text="", text_color=COLOR_ERROR, font=(FONT_MAIN, 10), anchor="w")
+            err.pack(fill="x", padx=40, pady=(0, 0))
+            return entry, err
+
+        entry_id, err_id = create_entry("Student ID", placeholder="e.g. 2018100123")
+        entry_name, err_name = create_entry("Full Name", placeholder="e.g. Juan dela C. Cruz")
+
+        ctk.CTkLabel(toplevel, text="College", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(2,0)) 
+        college_names = list(UNIVERSITY_STRUCTURE.keys())
+        
+        # --- FIXED HOVER LOGIC START (CURSOR FORCE) ---
+        combo_college = ctk.CTkComboBox(
+            toplevel, 
+            values=college_names, 
+            height=35, 
+            border_color="#E2E8F0", 
+            fg_color="#F8FAFC", 
+            text_color="black", 
+            dropdown_fg_color="white", 
+            dropdown_text_color="black", 
+            font=(FONT_MAIN, 12),
+            state="readonly",
+            button_color="#CBD5E1",
+            button_hover_color="#1A1851",
+            cursor="hand2"  # <-- Critical addition for cursor
+        )
+        combo_college.pack(fill="x", padx=40, pady=(2, 0))
+        combo_college.set("Select College") 
+        
+        # --- HELPER: FORCE CURSOR ON INTERNAL COMPONENTS ---
+        def force_hand_cursor(widget):
+            try:
+                # Force cursor on the main widget
+                widget.configure(cursor="hand2")
+                # Force cursor on internal entry (text area)
+                if hasattr(widget, '_entry'):
+                    widget._entry.configure(cursor="hand2")
+                # Force cursor on internal canvas (dropdown arrow area)
+                if hasattr(widget, '_canvas'):
+                    widget._canvas.configure(cursor="hand2")
+            except Exception as e:
+                print(f"Cursor error: {e}")
+
+        # Apply the fix immediately
+        force_hand_cursor(combo_college)
+
+        ctk.CTkLabel(toplevel, text="Program", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(5,0)) 
+        
+        combo_program = ctk.CTkComboBox(
+            toplevel, 
+            values=[], 
+            height=35, 
+            border_color="#E2E8F0", 
+            fg_color="#F8FAFC", 
+            text_color="black", 
+            dropdown_fg_color="white", 
+            dropdown_text_color="black", 
+            font=(FONT_MAIN, 12),
+            state="readonly",
+            button_color="#CBD5E1",
+            button_hover_color="#1A1851",
+            cursor="hand2" # <-- Critical addition for cursor
+        )
+        combo_program.pack(fill="x", padx=40, pady=(2, 0))
+        combo_program.set("Select College First")
+        
+        # Apply the fix immediately
+        force_hand_cursor(combo_program)
+
+        err_prog = ctk.CTkLabel(toplevel, text="", text_color=COLOR_ERROR, font=(FONT_MAIN, 10), anchor="w")
+        err_prog.pack(fill="x", padx=40)
+
+        def update_programs(choice):
+            selected_college = choice
+            if selected_college in UNIVERSITY_STRUCTURE:
+                programs_list = [p["name"] for p in UNIVERSITY_STRUCTURE[selected_college]["programs"]]
+                combo_program.configure(values=programs_list)
+                combo_program.set(programs_list[0])
+            else:
+                combo_program.configure(values=[])
+                combo_program.set("No Programs Found")
+
+        combo_college.configure(command=update_programs)
+
+        def validate_inputs(event=None):
+            sid = entry_id.get().strip()
+            if len(sid) > 0 and (not sid.isdigit() or len(sid) > 10):
+                err_id.configure(text="❌ ID must be 10 digits (Numbers only)")
+            elif len(sid) > 0 and len(sid) != 10:
+                err_id.configure(text="⚠️ Must be exactly 10 digits")
+            else:
+                err_id.configure(text="")
+
+            name = entry_name.get()
+            words = name.split()
+            err_msg = ""
+            if len(name) > 0:
+                # Check 1: Start with Capital
+                if not name[0].isupper():
+                    err_msg = "⚠️ Start Name with a Capital letter."
+                
+                # Check 2: Minimum length (First + Last name assumption)
+                # NOTE: Allows 2 words (e.g. "Juan Cruz" for no middle name)
+                elif len(words) < 2:
+                    err_msg = "⚠️ Please enter full name (First & Last)."
+                
+                # Check 3: Middle Initial Dot Logic
+                else:
+                    for word in words:
+                        # If a word is 1 letter and it's a letter (not a symbol), it's likely an initial missing a dot
+                        if len(word) == 1 and word.isalpha():
+                            err_msg = f"⚠️ Add a dot for initial '{word}' (e.g. {word}.)"
+                            break
+            
+            err_name.configure(text=err_msg)
+
+        entry_id.bind("<KeyRelease>", validate_inputs)
+        entry_name.bind("<KeyRelease>", validate_inputs)
+
+        ctk.CTkLabel(toplevel, text="Location", text_color="gray", font=(FONT_MAIN, 12), anchor="w").pack(fill="x", padx=40, pady=(5,2)) 
+        loc_var = ctk.StringVar(value="UP")
+        radio_frame = ctk.CTkFrame(toplevel, fg_color="transparent")
+        radio_frame.pack(fill="x", padx=40)
+        ctk.CTkRadioButton(radio_frame, text="Upper Floor", variable=loc_var, value="UP", text_color="black", font=(FONT_MAIN, 12)).pack(side="left", padx=10)
+        ctk.CTkRadioButton(radio_frame, text="Lower Floor", variable=loc_var, value="DOWN", text_color="black", font=(FONT_MAIN, 12)).pack(side="left", padx=10)
+
+        # --- SMART CAPITALIZATION HELPER ---
+        def smart_format_name(text):
+            # Particles that should remain lowercase if they appear in the middle
+            lowercase_particles = ["de", "dela", "del", "da", "di", "van", "von", "la", "le"]
+            
+            words = text.split()
+            formatted_words = []
+            
+            for i, word in enumerate(words):
+                # Always capitalize the very first word
+                if i == 0:
+                    formatted_words.append(word.capitalize())
+                # If it's a known particle, keep it lowercase
+                elif word.lower() in lowercase_particles:
+                    formatted_words.append(word.lower())
+                # If it ends with a dot (like "C."), ensure it's uppercase "C."
+                elif word.endswith(".") and len(word) == 2:
+                    formatted_words.append(word.upper())
+                # Otherwise, standard capitalize
+                else:
+                    formatted_words.append(word.capitalize())
+            
+            return " ".join(formatted_words)
+
+        def save_action():
+            sid = entry_id.get().strip()
+            raw_name = entry_name.get().strip()
+            prog = combo_program.get()
+            loc = loc_var.get()
+            
+            # Use smart formatting instead of simple .title()
+            name = smart_format_name(raw_name)
+
+            if len(sid) != 10 or not sid.isdigit():
+                err_id.configure(text="❌ Cannot Save: Invalid ID")
+                return
+            
+            if prog == "Select College First" or prog == "" or prog == "No Programs Found":
+                err_prog.configure(text="❌ Please select a valid program")
+                return
+            
+            # Final Check on Name before saving
+            if len(raw_name) == 0 or len(raw_name.split()) < 2:
+                err_name.configure(text="❌ Invalid Name format")
+                return
+
+            if save_student_to_db(sid, name, prog, loc):
+                messagebox.showinfo("Success", f"Student Added:\n{name}")
+                toplevel.destroy()
+                if self.current_view_data: self.show_student_list(self.current_view_data)
+            else:
+                messagebox.showerror("Error", "Student ID already exists.")
+
+        ctk.CTkButton(toplevel, text="Save Student", fg_color=COLOR_ACCENT, height=45, font=(FONT_MAIN, 14, "bold"), command=save_action).pack(fill="x", padx=40, pady=20)
+
+    def open_edit_modal(self, sid, current_loc):
+        toplevel = ctk.CTkToplevel(self)
+        toplevel.geometry("300x250")
+        toplevel.title("Edit Location")
+        if hasattr(self, 'icon_photo'):
+             toplevel.after(200, lambda: toplevel.iconphoto(False, self.icon_photo))
+
+        toplevel.configure(fg_color="white")
+        toplevel.attributes("-topmost", True)
+
+        ctk.CTkLabel(toplevel, text=f"Edit Location for {sid}", font=(FONT_MAIN, 16, "bold"), text_color=COLOR_ACCENT).pack(pady=20)
+
+        normalized_loc = "UP" if "UP" in current_loc or "Upper" in current_loc else "DOWN"
+        loc_var = ctk.StringVar(value=normalized_loc)
+        
+        ctk.CTkRadioButton(toplevel, text="Upper Floor", variable=loc_var, value="UP", text_color="black").pack(pady=10)
+        ctk.CTkRadioButton(toplevel, text="Lower Floor", variable=loc_var, value="DOWN", text_color="black").pack(pady=10)
+
+        def update_action():
+            if update_student_location(sid, loc_var.get()):
+                messagebox.showinfo("Updated", "Location updated.")
+                toplevel.destroy()
+                if self.current_view_data: 
+                    self.show_student_list(self.current_view_data)
+                else:
+                    self.perform_search()
+        
+        ctk.CTkButton(toplevel, text="Update", fg_color=COLOR_ACCENT, command=update_action).pack(pady=20)
+
+    def delete_student(self, sid):
+        if messagebox.askyesno("Confirm Delete", f"Are you sure you want to delete student {sid}?"):
+            delete_student_from_db(sid)
+            if self.current_view_data: 
+                self.show_student_list(self.current_view_data)
+            else:
+                self.perform_search()
+
+    def clear_content(self):
+        # Clear sticky header widgets
+        for widget in self.sticky_header.winfo_children():
+            widget.destroy()
+        # Clear scrollable content widgets
+        for widget in self.content_area.winfo_children():
+            widget.destroy()
+
+if __name__ == "__main__":
+    app = LocatRApp()
+    app.mainloop()
