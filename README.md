@@ -12,7 +12,7 @@ LocatR is a desktop application designed to manage student records, including th
 - **Academic Dashboard:** A visual homepage displaying all Academic Units for quick navigation.
 - **Add Students:** Input student ID, name, course, and location. The location can be set to `UP` or `DOWN` using radio buttons.
 - **Edit Students:** Modify existing student details. Ensures unique student IDs.
-- **Delete Students:** Remove student records with confirmation prompt.
+- **Delete Students:** Remove student records with a confirmation prompt.
 - **Generate QR Codes:** Automatically generate a QR code for any student record and save it as a PNG file.
 - **Search Students:** Search by Student ID or Name dynamically.
 - **Scrollable List:** View all students in a scrollable, organized table.
